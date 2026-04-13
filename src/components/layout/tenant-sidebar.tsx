@@ -12,13 +12,18 @@ interface NavItem {
 }
 
 const navigation: NavItem[] = [
+  // Always visible
   { name: "Dashboard", href: "/dashboard", icon: DashboardIcon },
-  { name: "Approvals", href: "/approvals", icon: ApprovalsIcon, resource: "workflow" },
+  { name: "Approvals", href: "/approvals", icon: ApprovalsIcon },
+
+  // Module-gated (visible if user has any permission for the resource)
   { name: "Employees", href: "/employees", icon: EmployeesIcon, resource: "employee" },
   { name: "Leaves", href: "/leaves", icon: LeavesIcon, resource: "leave_request" },
   { name: "Attendance", href: "/attendance", icon: AttendanceIcon, resource: "attendance" },
   { name: "Payroll", href: "/payroll", icon: PayrollIcon, resource: "payroll" },
   { name: "Reports", href: "/reports", icon: ReportsIcon, resource: "report" },
+
+  // Admin/settings (gated by specific resources)
   { name: "Workflows", href: "/settings/workflows", icon: WorkflowsIcon, resource: "workflow" },
   { name: "Audit Logs", href: "/settings/audit-logs", icon: AuditLogIcon, resource: "audit_log" },
   { name: "Roles", href: "/settings/roles", icon: RolesIcon, resource: "role" },

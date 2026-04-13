@@ -32,7 +32,7 @@ export function useApprovals(
     } finally {
       setLoading(false);
     }
-  }, [params?.my_pending, params?.status]);
+  }, [params?.my_requests, params?.my_pending, params?.status]);
 
   useEffect(() => {
     refresh();

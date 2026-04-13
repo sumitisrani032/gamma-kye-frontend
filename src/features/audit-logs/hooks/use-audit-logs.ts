@@ -35,7 +35,7 @@ export function useAuditLogs(): UseAuditLogsReturn {
         limit: PAGE_SIZE,
         offset: (page - 1) * PAGE_SIZE,
       });
-      setLogs(data.data);
+      setLogs(data.audit_logs);
       setTotal(data.total);
     } catch {
       setError("Failed to load audit logs.");

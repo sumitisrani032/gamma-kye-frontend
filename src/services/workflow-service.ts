@@ -8,10 +8,35 @@ import type {
 } from "@/types";
 
 /* ------------------------------------------------------------------ */
+/*  Response wrappers — backend uses named key wrapping                */
+/* ------------------------------------------------------------------ */
+
+interface WorkflowInstanceListResponse {
+  workflow_instances: WorkflowInstance[];
+}
+
+interface WorkflowInstanceResponse {
+  workflow_instance: WorkflowInstance;
+}
+
+interface WorkflowDefinitionListResponse {
+  workflow_definitions: WorkflowDefinition[];
+}
+
+interface WorkflowDefinitionResponse {
+  workflow_definition: WorkflowDefinition;
+}
+
+interface WorkflowStepResponse {
+  step: WorkflowStep;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Workflow Instances (Approvals) — /api/v1/workflow_instances        */
 /* ------------------------------------------------------------------ */
 
 export interface WorkflowInstanceListParams {
+  my_requests?: boolean;
   my_pending?: boolean;
   status?: string;
 }
@@ -20,46 +45,54 @@ export async function getWorkflowInstances(
   params?: WorkflowInstanceListParams
 ): Promise<WorkflowInstance[]> {
   const searchParams = new URLSearchParams();
+  if (params?.my_requests) searchParams.set("my_requests", "true");
   if (params?.my_pending) searchParams.set("my_pending", "true");
   if (params?.status) searchParams.set("status", params.status);
   const qs = searchParams.toString();
-  return api.get<WorkflowInstance[]>(
+  const { workflow_instances } = await api.get<WorkflowInstanceListResponse>(
     `/api/v1/workflow_instances${qs ? `?${qs}` : ""}`
   );
+  return workflow_instances;
 }
 
 export async function getWorkflowInstance(
   id: string
 ): Promise<WorkflowInstance> {
-  return api.get<WorkflowInstance>(`/api/v1/workflow_instances/${id}`);
+  const { workflow_instance } = await api.get<WorkflowInstanceResponse>(
+    `/api/v1/workflow_instances/${id}`
+  );
+  return workflow_instance;
 }
 
 export async function approveWorkflow(
   id: string,
   comments: string
 ): Promise<WorkflowInstance> {
-  return api.post<WorkflowInstance>(
+  const { workflow_instance } = await api.post<WorkflowInstanceResponse>(
     `/api/v1/workflow_instances/${id}/approve`,
     { comments }
   );
+  return workflow_instance;
 }
 
 export async function rejectWorkflow(
   id: string,
   comments: string
 ): Promise<WorkflowInstance> {
-  return api.post<WorkflowInstance>(
+  const { workflow_instance } = await api.post<WorkflowInstanceResponse>(
     `/api/v1/workflow_instances/${id}/reject`,
     { comments }
   );
+  return workflow_instance;
 }
 
 export async function cancelWorkflow(
   id: string
 ): Promise<WorkflowInstance> {
-  return api.post<WorkflowInstance>(
+  const { workflow_instance } = await api.post<WorkflowInstanceResponse>(
     `/api/v1/workflow_instances/${id}/cancel`
   );
+  return workflow_instance;
 }
 
 /* ------------------------------------------------------------------ */
@@ -67,34 +100,44 @@ export async function cancelWorkflow(
 /* ------------------------------------------------------------------ */
 
 export async function getWorkflowDefinitions(): Promise<WorkflowDefinition[]> {
-  return api.get<WorkflowDefinition[]>("/api/v1/manage/workflow_definitions");
+  const { workflow_definitions } =
+    await api.get<WorkflowDefinitionListResponse>(
+      "/api/v1/manage/workflow_definitions"
+    );
+  return workflow_definitions;
 }
 
 export async function getWorkflowDefinition(
   id: string
 ): Promise<WorkflowDefinition> {
-  return api.get<WorkflowDefinition>(
-    `/api/v1/manage/workflow_definitions/${id}`
-  );
+  const { workflow_definition } =
+    await api.get<WorkflowDefinitionResponse>(
+      `/api/v1/manage/workflow_definitions/${id}`
+    );
+  return workflow_definition;
 }
 
 export async function createWorkflowDefinition(
   payload: CreateWorkflowDefinitionRequest
 ): Promise<WorkflowDefinition> {
-  return api.post<WorkflowDefinition>(
-    "/api/v1/manage/workflow_definitions",
-    payload
-  );
+  const { workflow_definition } =
+    await api.post<WorkflowDefinitionResponse>(
+      "/api/v1/manage/workflow_definitions",
+      payload
+    );
+  return workflow_definition;
 }
 
 export async function updateWorkflowDefinition(
   id: string,
   payload: Partial<CreateWorkflowDefinitionRequest>
 ): Promise<WorkflowDefinition> {
-  return api.put<WorkflowDefinition>(
-    `/api/v1/manage/workflow_definitions/${id}`,
-    payload
-  );
+  const { workflow_definition } =
+    await api.put<WorkflowDefinitionResponse>(
+      `/api/v1/manage/workflow_definitions/${id}`,
+      payload
+    );
+  return workflow_definition;
 }
 
 export async function deleteWorkflowDefinition(id: string): Promise<void> {
@@ -109,10 +152,11 @@ export async function addWorkflowStep(
   definitionId: string,
   payload: CreateStepRequest
 ): Promise<WorkflowStep> {
-  return api.post<WorkflowStep>(
+  const { step } = await api.post<WorkflowStepResponse>(
     `/api/v1/manage/workflow_definitions/${definitionId}/steps`,
     payload
   );
+  return step;
 }
 
 export async function updateWorkflowStep(
@@ -120,10 +164,11 @@ export async function updateWorkflowStep(
   stepId: string,
   payload: Partial<CreateStepRequest>
 ): Promise<WorkflowStep> {
-  return api.put<WorkflowStep>(
+  const { step } = await api.put<WorkflowStepResponse>(
     `/api/v1/manage/workflow_definitions/${definitionId}/steps/${stepId}`,
     payload
   );
+  return step;
 }
 
 export async function deleteWorkflowStep(

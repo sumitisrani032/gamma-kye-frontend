@@ -1,9 +1,18 @@
 import { api } from "./api-client";
-import type { AuditLog, AuditLogFilters, PaginatedList } from "@/types";
+import type { AuditLog, AuditLogFilters } from "@/types";
+
+interface AuditLogListResponse {
+  audit_logs: AuditLog[];
+  total: number;
+}
+
+interface AuditLogResponse {
+  audit_log: AuditLog;
+}
 
 export async function getAuditLogs(
   filters?: AuditLogFilters
-): Promise<PaginatedList<AuditLog>> {
+): Promise<AuditLogListResponse> {
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
@@ -13,11 +22,14 @@ export async function getAuditLogs(
     });
   }
   const qs = params.toString();
-  return api.get<PaginatedList<AuditLog>>(
+  return api.get<AuditLogListResponse>(
     `/api/v1/manage/audit_logs${qs ? `?${qs}` : ""}`
   );
 }
 
 export async function getAuditLog(id: string): Promise<AuditLog> {
-  return api.get<AuditLog>(`/api/v1/manage/audit_logs/${id}`);
+  const { audit_log } = await api.get<AuditLogResponse>(
+    `/api/v1/manage/audit_logs/${id}`
+  );
+  return audit_log;
 }
