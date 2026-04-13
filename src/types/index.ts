@@ -194,7 +194,7 @@ export interface CreateStepRequest {
   step_order: number;
   approver_type: string;
   action_on_reject: RejectAction;
-  auto_escalation_hours?: number | null;
+  auto_escalation_hours: number | null;
 }
 
 /* ------------------------------------------------------------------ */
