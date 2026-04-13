@@ -5,10 +5,10 @@ import {
   getWorkflowDefinitions,
   deleteWorkflowDefinition,
 } from "@/services/workflow-service";
-import type { WorkflowDefinition, ApiError } from "@/types";
+import type { WorkflowDefinitionSummary, ApiError } from "@/types";
 
 interface UseWorkflowDefinitionsReturn {
-  definitions: WorkflowDefinition[];
+  definitions: WorkflowDefinitionSummary[];
   loading: boolean;
   error: string;
   remove: (id: string) => Promise<void>;
@@ -16,7 +16,7 @@ interface UseWorkflowDefinitionsReturn {
 }
 
 export function useWorkflowDefinitions(): UseWorkflowDefinitionsReturn {
-  const [definitions, setDefinitions] = useState<WorkflowDefinition[]>([]);
+  const [definitions, setDefinitions] = useState<WorkflowDefinitionSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 

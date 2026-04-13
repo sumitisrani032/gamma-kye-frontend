@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { ProtectedRoute } from "@/components/common/protected-route";
 import { TenantSidebar } from "@/components/layout/tenant-sidebar";
-import { NotificationBell } from "@/features/notifications/components/notification-bell";
+import { TopBar } from "@/components/layout/top-bar";
 import { ApprovalList } from "@/features/approvals/components/approval-list";
 import { useApprovals } from "@/features/approvals/hooks/use-approvals";
 import { useAuth } from "@/contexts/auth-context";
@@ -33,7 +33,7 @@ export default function ApprovalsPage() {
 }
 
 function ApprovalsContent() {
-  const { canWithScope } = useAuth();
+  const { can, canWithScope } = useAuth();
 
   const visibleTabs = useMemo(() => {
     const tabs: TabConfig[] = [];
@@ -41,9 +41,10 @@ function ApprovalsContent() {
     // My Requests — always visible (any user can initiate workflows)
     tabs.push(TABS[0]);
 
-    // Pending Approvals — visible to anyone who can approve workflows
-    // (managers, HR, admins — anyone with workflow approve at any scope)
-    if (canWithScope("workflow", "approve", "self")) {
+    // Pending Approvals — visible to users who can be approvers.
+    // Managers/HR/admins have leave_request:approve in their permissions.
+    // Plain employees (self-scope only) never appear as step approvers.
+    if (can("leave_request", "approve")) {
       tabs.push(TABS[1]);
     }
 
@@ -53,7 +54,7 @@ function ApprovalsContent() {
     }
 
     return tabs;
-  }, [canWithScope]);
+  }, [can, canWithScope]);
 
   const [activeTab, setActiveTab] = useState<Tab>(visibleTabs[0].key);
 
@@ -64,22 +65,15 @@ function ApprovalsContent() {
     <div className="flex h-screen overflow-hidden">
       <TenantSidebar />
       <main className="flex-1 overflow-y-auto">
-        <div className="border-b border-border bg-surface px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-text-primary">Approvals</h1>
-              <p className="mt-1 text-sm text-text-secondary">
-                Track your requests and action pending approvals
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" onClick={refresh} disabled={loading}>
-                Refresh
-              </Button>
-              <NotificationBell />
-            </div>
-          </div>
-        </div>
+        <TopBar
+          title="Approvals"
+          description="Track your requests and action pending approvals"
+          actions={
+            <Button variant="ghost" onClick={refresh} disabled={loading}>
+              Refresh
+            </Button>
+          }
+        />
 
         <div className="px-8 py-6 space-y-4">
           <div className="flex items-center gap-2 border-b border-border pb-3">

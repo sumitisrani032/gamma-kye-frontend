@@ -2,6 +2,7 @@
 
 import { ProtectedRoute } from "@/components/common/protected-route";
 import { TenantSidebar } from "@/components/layout/tenant-sidebar";
+import { TopBar } from "@/components/layout/top-bar";
 import { Can } from "@/components/common/can";
 import { AuditLogFiltersBar } from "@/features/audit-logs/components/audit-log-filters";
 import { AuditLogTable } from "@/features/audit-logs/components/audit-log-table";
@@ -14,12 +15,10 @@ export default function AuditLogsPage() {
       <div className="flex h-screen overflow-hidden">
         <TenantSidebar />
         <main className="flex-1 overflow-y-auto">
-          <div className="border-b border-border bg-surface px-8 py-6">
-            <h1 className="text-2xl font-bold text-text-primary">Audit Logs</h1>
-            <p className="mt-1 text-sm text-text-secondary">
-              Review all changes made within your organization
-            </p>
-          </div>
+          <TopBar
+            title="Audit Logs"
+            description="Review all changes made within your organization"
+          />
           <div className="px-8 py-6">
             <Can
               resource="audit_log"

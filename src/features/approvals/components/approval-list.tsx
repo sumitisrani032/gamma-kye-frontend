@@ -46,8 +46,8 @@ export function ApprovalList({ instances }: ApprovalListProps) {
                   <span className="font-medium">
                     {inst.initiated_by.first_name} {inst.initiated_by.last_name}
                   </span>
-                  {" · "}Step {inst.current_step_order} of{" "}
-                  {inst.step_instances.length}
+                  {" · "}Step {inst.current_step_order}
+                  {inst.step_instances && ` of ${inst.step_instances.length}`}
                 </p>
               </div>
               <span className="text-xs text-text-muted shrink-0">

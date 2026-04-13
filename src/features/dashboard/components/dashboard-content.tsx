@@ -1,7 +1,7 @@
 "use client";
 
 import { TenantSidebar } from "@/components/layout/tenant-sidebar";
-import { NotificationBell } from "@/features/notifications/components/notification-bell";
+import { TopBar } from "@/components/layout/top-bar";
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent } from "@/components/ui";
 
@@ -19,15 +19,10 @@ export function DashboardContent() {
     <div className="flex h-screen overflow-hidden">
       <TenantSidebar />
       <main className="flex-1 overflow-y-auto">
-        <div className="border-b border-border bg-surface px-8 py-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-text-primary">Dashboard</h1>
-            <p className="mt-1 text-sm text-text-secondary">
-              Welcome to {tenant?.name || "your workspace"}
-            </p>
-          </div>
-          <NotificationBell />
-        </div>
+        <TopBar
+          title="Dashboard"
+          description={`Welcome to ${tenant?.name || "your workspace"}`}
+        />
 
         <div className="px-8 py-6 space-y-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

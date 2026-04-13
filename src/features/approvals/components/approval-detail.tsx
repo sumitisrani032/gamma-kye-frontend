@@ -33,7 +33,7 @@ export function ApprovalDetail({ id }: ApprovalDetailProps) {
     reject,
     cancel,
   } = useApprovalDetail(id);
-  const { user } = useAuth();
+  const { user, canWithScope } = useAuth();
 
   if (loading) {
     return (
@@ -50,18 +50,21 @@ export function ApprovalDetail({ id }: ApprovalDetailProps) {
   const isPending =
     instance.status === "pending" || instance.status === "in_progress";
 
-  // Determine if current user is the assigned approver for the current step
-  const currentStep = instance.step_instances.find(
+  const userId = String(user?.id);
+
+  // Approve/Reject: only the assigned approver of the *current* pending step
+  const currentStep = instance.step_instances?.find(
     (s) => s.step_order === instance.current_step_order
   );
   const isAssignedApprover =
-    isPending &&
-    currentStep?.assigned_to?.id !== undefined &&
-    currentStep.assigned_to.id === String(user?.id);
+    isPending && currentStep?.assigned_to?.id === userId;
 
-  // Initiator or admin can cancel
-  const canCancel =
-    isPending && instance.initiated_by.id === String(user?.id);
+  // Cancel: initiator can cancel their own, admin can cancel any
+  const isInitiator = instance.initiated_by.id === userId;
+  const isAdmin = canWithScope("workflow", "read", "global");
+  const canCancel = isPending && (isInitiator || isAdmin);
+
+  const showActions = isAssignedApprover || canCancel;
 
   return (
     <div className="space-y-6">
@@ -98,27 +101,19 @@ export function ApprovalDetail({ id }: ApprovalDetailProps) {
             <h3 className="text-sm font-semibold text-text-primary mb-3">
               Approval Steps
             </h3>
-            <StepTimeline steps={instance.step_instances} />
+            <StepTimeline steps={instance.step_instances || []} />
           </div>
 
-          {isAssignedApprover && (
+          {showActions && (
             <div className="border-t border-border pt-4">
-              <h3 className="text-sm font-semibold text-text-primary mb-3">
-                Your Action
-              </h3>
+              {isAssignedApprover && (
+                <h3 className="text-sm font-semibold text-text-primary mb-3">
+                  Your Action
+                </h3>
+              )}
               <ApprovalActions
-                onApprove={approve}
-                onReject={reject}
-                onCancel={canCancel ? cancel : undefined}
-                loading={actionLoading}
-                error={actionError}
-              />
-            </div>
-          )}
-
-          {canCancel && !isAssignedApprover && (
-            <div className="border-t border-border pt-4">
-              <ApprovalActions
+                showApproveReject={isAssignedApprover}
+                showCancel={canCancel}
                 onApprove={approve}
                 onReject={reject}
                 onCancel={cancel}

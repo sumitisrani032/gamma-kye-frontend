@@ -2,6 +2,7 @@ import { api } from "./api-client";
 import type {
   WorkflowInstance,
   WorkflowDefinition,
+  WorkflowDefinitionSummary,
   CreateWorkflowDefinitionRequest,
   CreateStepRequest,
   WorkflowStep,
@@ -20,7 +21,7 @@ interface WorkflowInstanceResponse {
 }
 
 interface WorkflowDefinitionListResponse {
-  workflow_definitions: WorkflowDefinition[];
+  workflow_definitions: WorkflowDefinitionSummary[];
 }
 
 interface WorkflowDefinitionResponse {
@@ -99,7 +100,7 @@ export async function cancelWorkflow(
 /*  Workflow Definitions — /api/v1/manage/workflow_definitions         */
 /* ------------------------------------------------------------------ */
 
-export async function getWorkflowDefinitions(): Promise<WorkflowDefinition[]> {
+export async function getWorkflowDefinitions(): Promise<WorkflowDefinitionSummary[]> {
   const { workflow_definitions } =
     await api.get<WorkflowDefinitionListResponse>(
       "/api/v1/manage/workflow_definitions"
@@ -130,7 +131,7 @@ export async function createWorkflowDefinition(
 
 export async function updateWorkflowDefinition(
   id: string,
-  payload: Partial<CreateWorkflowDefinitionRequest>
+  payload: CreateWorkflowDefinitionRequest
 ): Promise<WorkflowDefinition> {
   const { workflow_definition } =
     await api.put<WorkflowDefinitionResponse>(

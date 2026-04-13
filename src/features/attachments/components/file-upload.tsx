@@ -75,10 +75,10 @@ export function FileUpload({
               <div className="flex items-center gap-2 min-w-0">
                 <FileIcon className="h-4 w-4 text-text-muted shrink-0" />
                 <span className="text-sm text-text-primary truncate">
-                  {att.filename}
+                  {att.file_name}
                 </span>
                 <span className="text-xs text-text-muted shrink-0">
-                  {formatBytes(att.byte_size)}
+                  {formatBytes(att.file_size)}
                 </span>
               </div>
               <button

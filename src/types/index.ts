@@ -79,17 +79,6 @@ export interface ApiError {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Paginated list wrapper                                            */
-/* ------------------------------------------------------------------ */
-
-export interface PaginatedList<T> {
-  data: T[];
-  total: number;
-  limit: number;
-  offset: number;
-}
-
-/* ------------------------------------------------------------------ */
 /*  Notifications                                                     */
 /* ------------------------------------------------------------------ */
 
@@ -156,7 +145,7 @@ export interface WorkflowInstance {
   initiated_by: UserSummary;
   created_at: string;
   completed_at: string | null;
-  step_instances: StepInstance[];
+  step_instances?: StepInstance[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -169,32 +158,42 @@ export interface WorkflowStep {
   id: string;
   step_order: number;
   approver_type: string;
+  approver_value: string | null;
   action_on_reject: RejectAction;
   auto_escalation_hours: number | null;
 }
 
-export interface WorkflowDefinition {
+/** List serializer — returned by GET /manage/workflow_definitions */
+export interface WorkflowDefinitionSummary {
   id: string;
   name: string;
   entity_type: string;
   is_active: boolean;
+  steps_count: number;
   created_at: string;
+}
+
+/** Detail serializer — returned by GET /manage/workflow_definitions/:id */
+export interface WorkflowDefinition extends WorkflowDefinitionSummary {
   updated_at: string;
   steps: WorkflowStep[];
 }
 
 export interface CreateWorkflowDefinitionRequest {
-  name: string;
-  entity_type: string;
-  is_active: boolean;
-  steps: Omit<WorkflowStep, "id">[];
+  workflow_definition: {
+    name: string;
+    entity_type: string;
+    is_active: boolean;
+  };
+  steps: CreateStepRequest[];
 }
 
 export interface CreateStepRequest {
   step_order: number;
   approver_type: string;
+  approver_value?: string | null;
   action_on_reject: RejectAction;
-  auto_escalation_hours: number | null;
+  auto_escalation_hours?: number | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -230,18 +229,18 @@ export interface AuditLogFilters {
 
 export interface Attachment {
   id: string;
-  filename: string;
-  content_type: string;
-  byte_size: number;
-  attachable_type: string;
-  attachable_id: string;
+  file_name: string;
+  file_type: string;
+  file_size: number;
+  s3_key: string;
   created_at: string;
 }
 
 export interface CreateAttachmentRequest {
-  filename: string;
-  content_type: string;
-  byte_size: number;
-  attachable_type: string;
-  attachable_id: string;
+  attachment: {
+    file_name: string;
+    file_type: string;
+    file_size: number;
+    s3_key: string;
+  };
 }

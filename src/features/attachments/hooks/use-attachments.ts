@@ -11,11 +11,7 @@ interface UseAttachmentsReturn {
   attachments: Attachment[];
   uploading: boolean;
   error: string;
-  addAttachment: (
-    file: File,
-    attachableType: string,
-    attachableId: string
-  ) => Promise<Attachment | null>;
+  addAttachment: (file: File, s3Key: string) => Promise<Attachment | null>;
   removeAttachment: (id: string) => Promise<void>;
   clearError: () => void;
 }
@@ -28,22 +24,17 @@ export function useAttachments(
   const [error, setError] = useState("");
 
   const addAttachment = useCallback(
-    async (
-      file: File,
-      attachableType: string,
-      attachableId: string
-    ): Promise<Attachment | null> => {
+    async (file: File, s3Key: string): Promise<Attachment | null> => {
       setUploading(true);
       setError("");
       try {
-        // For now, just create the metadata record.
-        // S3 presigned URL upload will be added later.
         const attachment = await createAttachment({
-          filename: file.name,
-          content_type: file.type,
-          byte_size: file.size,
-          attachable_type: attachableType,
-          attachable_id: attachableId,
+          attachment: {
+            file_name: file.name,
+            file_type: file.type,
+            file_size: file.size,
+            s3_key: s3Key,
+          },
         });
         setAttachments((prev) => [...prev, attachment]);
         return attachment;

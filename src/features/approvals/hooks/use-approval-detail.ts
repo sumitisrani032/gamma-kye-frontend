@@ -50,8 +50,10 @@ export function useApprovalDetail(id: string): UseApprovalDetailReturn {
       setActionLoading(true);
       setActionError("");
       try {
-        const updated = await action();
-        setInstance(updated);
+        await action();
+        // Refetch the full detail to get updated status + step_instances
+        const fresh = await getWorkflowInstance(id);
+        setInstance(fresh);
       } catch (err) {
         const apiError = err as ApiError;
         setActionError(apiError.error || "Action failed. Please try again.");
@@ -59,7 +61,7 @@ export function useApprovalDetail(id: string): UseApprovalDetailReturn {
         setActionLoading(false);
       }
     },
-    []
+    [id]
   );
 
   const approve = useCallback(

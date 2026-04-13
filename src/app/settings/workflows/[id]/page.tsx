@@ -3,6 +3,7 @@
 import { use } from "react";
 import { ProtectedRoute } from "@/components/common/protected-route";
 import { TenantSidebar } from "@/components/layout/tenant-sidebar";
+import { TopBar } from "@/components/layout/top-bar";
 import { WorkflowForm } from "@/features/workflows/components/workflow-form";
 
 export default function EditWorkflowPage({
@@ -17,6 +18,7 @@ export default function EditWorkflowPage({
       <div className="flex h-screen overflow-hidden">
         <TenantSidebar />
         <main className="flex-1 overflow-y-auto">
+          <TopBar title="Edit Workflow" />
           <div className="px-8 py-6">
             <WorkflowForm editId={id} />
           </div>

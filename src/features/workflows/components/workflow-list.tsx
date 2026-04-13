@@ -62,7 +62,7 @@ export function WorkflowList() {
                 </div>
                 <p className="mt-0.5 text-xs text-text-secondary">
                   {ENTITY_LABELS[def.entity_type] || def.entity_type} ·{" "}
-                  {def.steps.length} step{def.steps.length !== 1 ? "s" : ""}
+                  {def.steps_count} step{def.steps_count !== 1 ? "s" : ""}
                 </p>
               </div>
               <div className="flex items-center gap-2">

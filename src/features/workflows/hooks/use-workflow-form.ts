@@ -18,6 +18,7 @@ interface WorkflowFormState {
 const EMPTY_STEP: CreateStepRequest = {
   step_order: 1,
   approver_type: "reporting_manager",
+  approver_value: null,
   action_on_reject: "terminate",
   auto_escalation_hours: null,
 };
@@ -66,6 +67,7 @@ export function useWorkflowForm(editId?: string): UseWorkflowFormReturn {
           steps: def.steps.map((s) => ({
             step_order: s.step_order,
             approver_type: s.approver_type,
+            approver_value: s.approver_value,
             action_on_reject: s.action_on_reject,
             auto_escalation_hours: s.auto_escalation_hours,
           })),
@@ -129,10 +131,19 @@ export function useWorkflowForm(editId?: string): UseWorkflowFormReturn {
     setError("");
     setFieldErrors({});
     try {
+      const payload = {
+        workflow_definition: {
+          name: form.name,
+          entity_type: form.entity_type,
+          is_active: form.is_active,
+        },
+        steps: form.steps,
+      };
+
       if (editId) {
-        await updateWorkflowDefinition(editId, form);
+        await updateWorkflowDefinition(editId, payload);
       } else {
-        await createWorkflowDefinition(form);
+        await createWorkflowDefinition(payload);
       }
       return true;
     } catch (err) {

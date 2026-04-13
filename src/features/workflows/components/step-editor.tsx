@@ -79,10 +79,10 @@ export function StepEditor({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Select
-          label="Approver"
+          label="Approver Type"
           value={step.approver_type}
           onChange={(e) =>
-            onChange({ ...step, approver_type: e.target.value })
+            onChange({ ...step, approver_type: e.target.value, approver_value: null })
           }
           options={APPROVER_TYPES}
         />
@@ -98,6 +98,17 @@ export function StepEditor({
           options={REJECT_ACTIONS}
         />
       </div>
+
+      {step.approver_type === "specific_user" && (
+        <Input
+          label="User ID"
+          value={step.approver_value || ""}
+          onChange={(e) =>
+            onChange({ ...step, approver_value: e.target.value || null })
+          }
+          placeholder="Enter user UUID"
+        />
+      )}
 
       <Input
         label="Auto-escalation (hours)"
