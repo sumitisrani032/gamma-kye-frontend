@@ -8,12 +8,20 @@ export interface Tenant {
   updated_at: string;
 }
 
+export interface Permission {
+  resource: string;
+  action: string;
+  scope: string;
+}
+
 export interface User {
   id: number;
   email: string;
   first_name: string;
   last_name: string;
   role: string;
+  roles: string[];
+  permissions: Permission[];
 }
 
 export interface AuthTokens {
@@ -53,6 +61,11 @@ export interface AuthResponse {
   user: User;
   tenant: Tenant;
   tokens: AuthTokens;
+}
+
+export interface MeResponse {
+  user: User;
+  tenant: Tenant;
 }
 
 export interface TenantCheckResponse {
