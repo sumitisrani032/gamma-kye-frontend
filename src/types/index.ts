@@ -79,6 +79,69 @@ export interface ApiError {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Role Management                                                   */
+/* ------------------------------------------------------------------ */
+
+export interface PermissionDetail {
+  id: string;
+  resource: string;
+  action: string;
+  scope: string;
+  key: string;
+  description: string;
+}
+
+export interface RoleSummary {
+  id: string;
+  name: string;
+  description: string;
+  is_system_role: boolean;
+  users_count: number;
+  permissions_count: number;
+  created_at: string;
+}
+
+export interface RoleDetail extends RoleSummary {
+  permissions: PermissionDetail[];
+}
+
+export interface CreateRoleRequest {
+  role: {
+    name: string;
+    description: string;
+  };
+  permission_ids: string[];
+}
+
+export interface RoleAssignment {
+  id: string;
+  name: string;
+  is_system_role: boolean;
+}
+
+/* ------------------------------------------------------------------ */
+/*  User Management                                                   */
+/* ------------------------------------------------------------------ */
+
+export type UserStatus = "active" | "inactive" | "locked";
+
+export interface ManagedUser {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  status: UserStatus;
+  roles: RoleAssignment[];
+  last_login_at: string | null;
+  created_at: string;
+}
+
+export interface ManagedUserDetail {
+  user: ManagedUser;
+  permissions: PermissionDetail[];
+}
+
+/* ------------------------------------------------------------------ */
 /*  Notifications                                                     */
 /* ------------------------------------------------------------------ */
 
