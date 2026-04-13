@@ -1,9 +1,11 @@
 import { api } from "./api-client";
 import { tokens } from "@/lib/tokens";
+import { clearPermissions } from "@/lib/permissions";
 import { getMainDomainUrl } from "@/lib/tenant";
 import type {
   AuthResponse,
   LoginRequest,
+  MeResponse,
   RegisterTenantRequest,
   RegisterUserRequest,
   Tenant,
@@ -48,8 +50,13 @@ export async function logout(): Promise<void> {
     });
   } finally {
     tokens.clear();
+    clearPermissions();
     window.location.href = "/login";
   }
+}
+
+export async function getMe(): Promise<MeResponse> {
+  return api.get<MeResponse>("/api/v1/auth/me");
 }
 
 export async function getCurrentTenant(): Promise<Tenant> {

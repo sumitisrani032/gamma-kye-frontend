@@ -9,12 +9,19 @@ import {
   type ReactNode,
 } from "react";
 import { tokens } from "@/lib/tokens";
-import { decodeJwt } from "@/lib/jwt";
-import { getCurrentTenant, logout as logoutApi } from "@/services/auth-service";
+import {
+  setPermissions,
+  clearPermissions,
+  can,
+  canWithScope,
+  canAccessModule,
+  getScope,
+} from "@/lib/permissions";
+import { getMe, logout as logoutApi } from "@/services/auth-service";
 import type { User, Tenant } from "@/types";
 
 interface AuthState {
-  user: Pick<User, "id" | "role"> | null;
+  user: User | null;
   tenant: Tenant | null;
   loading: boolean;
   isAuthenticated: boolean;
@@ -23,46 +30,43 @@ interface AuthState {
 interface AuthContextValue extends AuthState {
   refreshAuth: () => Promise<void>;
   logout: () => Promise<void>;
+  can: (resource: string, action: string) => boolean;
+  canWithScope: (resource: string, action: string, requiredScope: string) => boolean;
+  canAccessModule: (resource: string) => boolean;
+  getScope: (resource: string, action: string) => string | null;
 }
+
+const UNAUTHENTICATED: AuthState = {
+  user: null,
+  tenant: null,
+  loading: false,
+  isAuthenticated: false,
+};
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
-    user: null,
-    tenant: null,
+    ...UNAUTHENTICATED,
     loading: true,
-    isAuthenticated: false,
   });
 
   const refreshAuth = useCallback(async () => {
     const accessToken = tokens.getAccess();
     if (!accessToken) {
-      setState({ user: null, tenant: null, loading: false, isAuthenticated: false });
+      clearPermissions();
+      setState(UNAUTHENTICATED);
       return;
     }
 
     try {
-      const payload = decodeJwt(accessToken);
-      if (!payload) {
-        tokens.clear();
-        setState({ user: null, tenant: null, loading: false, isAuthenticated: false });
-        return;
-      }
-
-      const user = { id: payload.user_id, role: payload.role };
-      let tenant: Tenant | null = null;
-
-      try {
-        tenant = await getCurrentTenant();
-      } catch {
-        // Tenant fetch may fail if API is down — still set user from token
-      }
-
+      const { user, tenant } = await getMe();
+      setPermissions(user.permissions);
       setState({ user, tenant, loading: false, isAuthenticated: true });
     } catch {
       tokens.clear();
-      setState({ user: null, tenant: null, loading: false, isAuthenticated: false });
+      clearPermissions();
+      setState(UNAUTHENTICATED);
     }
   }, []);
 
@@ -75,7 +79,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refreshAuth]);
 
   return (
-    <AuthContext.Provider value={{ ...state, refreshAuth, logout }}>
+    <AuthContext.Provider
+      value={{
+        ...state,
+        refreshAuth,
+        logout,
+        can,
+        canWithScope,
+        canAccessModule,
+        getScope,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
