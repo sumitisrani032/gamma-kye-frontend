@@ -86,15 +86,27 @@ export function DashboardContent() {
                 </h2>
                 <dl className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <dt className="text-text-secondary">Role</dt>
-                    <dd className="font-medium text-text-primary capitalize">
-                      {user?.role || "—"}
+                    <dt className="text-text-secondary">Name</dt>
+                    <dd className="font-medium text-text-primary">
+                      {user ? `${user.first_name} ${user.last_name}` : "—"}
                     </dd>
                   </div>
                   <div className="flex justify-between">
-                    <dt className="text-text-secondary">User ID</dt>
+                    <dt className="text-text-secondary">Email</dt>
                     <dd className="font-medium text-text-primary">
-                      {user?.id || "—"}
+                      {user?.email || "—"}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-text-secondary">Roles</dt>
+                    <dd className="font-medium text-text-primary">
+                      {user?.roles?.join(", ") || user?.role || "—"}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-text-secondary">Permissions</dt>
+                    <dd className="font-medium text-text-primary">
+                      {user?.permissions?.length ?? "—"}
                     </dd>
                   </div>
                 </dl>
