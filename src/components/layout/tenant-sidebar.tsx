@@ -71,7 +71,7 @@ export function TenantSidebar() {
               {user ? `${user.first_name} ${user.last_name}` : "User"}
             </p>
             <p className="text-xs text-text-muted truncate">
-              {user?.roles?.[0] || user?.role || ""}
+              {user?.roles?.[0] || ""}
             </p>
           </div>
           <button

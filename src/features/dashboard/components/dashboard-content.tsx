@@ -100,7 +100,7 @@ export function DashboardContent() {
                   <div className="flex justify-between">
                     <dt className="text-text-secondary">Roles</dt>
                     <dd className="font-medium text-text-primary">
-                      {user?.roles?.join(", ") || user?.role || "—"}
+                      {user?.roles?.join(", ") || "—"}
                     </dd>
                   </div>
                   <div className="flex justify-between">
