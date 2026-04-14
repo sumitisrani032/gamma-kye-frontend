@@ -41,7 +41,7 @@ function EmployeeRow({ emp }: { emp: EmployeeListItem }) {
 export function EmployeeList() {
   const { employees, loading, error } = useEmployees();
   const { canWithScope } = useAuth();
-  const canManage = canWithScope("employee", "create", "global");
+  const canManage = canWithScope("employee", "create", "department");
 
   if (loading) {
     return (

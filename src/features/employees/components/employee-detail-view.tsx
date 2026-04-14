@@ -588,18 +588,27 @@ export function EmployeeDetailView({ employeeId }: EmployeeDetailViewProps) {
     employee, loading, error, actionError,
     update, promote, transfer, changeReportingManager, offboard, addRole, deleteRole, setAccountStatus, setPassword,
   } = useEmployeeDetail(employeeId);
-  const { user, canWithScope, getScope } = useAuth();
+  const { user, can: canDo, canWithScope, getScope } = useAuth();
   const [activePanel, setActivePanel] = useState<ActionPanel>(null);
 
-  // Determine access level for THIS employee
+  // Permission tiers per backend spec
   const isSelf = employee?.user_id === String(user?.id);
-  const scope = getScope("employee", "update");
-  const isGlobalAdmin = scope === "global";
-  // Global admin can manage any employee (including self for edit purposes)
-  // Non-global users cannot manage anyone
-  const canManageEmployee = isGlobalAdmin;
-  // Private details visible to self or global-scope admins
-  const canViewPrivate = isSelf || isGlobalAdmin;
+  const hasGlobalUpdate = canWithScope("employee", "update", "global");
+  const hasDeptUpdate = canWithScope("employee", "update", "department");
+
+  // Edit basic fields (phone, personal email): dept+ scope, not self (unless global)
+  const canEditBasic = hasGlobalUpdate || (hasDeptUpdate && !isSelf);
+  // Promote/Transfer/Change Manager/Set Password/Account: global scope (HR Mgr, HR Dir, Admin)
+  const canDoGlobalActions = hasGlobalUpdate;
+  // Offboard: needs employee:delete permission
+  const canOffboard = canDo("employee", "delete");
+  // Roles: only role:assign permission (Admin only)
+  const canAssignRoles = canDo("role", "assign");
+  // Shift assignment: needs shift:update permission
+  const canManageShift = canDo("shift", "update");
+  // Private details (DOB, gender, grade, user account): self OR global scope only
+  // Dept Manager should NOT see these for other employees
+  const canViewPrivate = isSelf || hasGlobalUpdate;
 
   const togglePanel = (panel: ActionPanel) => setActivePanel((prev) => (prev === panel ? null : panel));
 
@@ -642,18 +651,20 @@ export function EmployeeDetailView({ employeeId }: EmployeeDetailViewProps) {
           </div>
         </div>
 
-        {/* Action buttons — only for department+ scope managers/admins */}
-        {canManageEmployee && (
+        {/* Action buttons — tiered by permission scope */}
+        {(canEditBasic || canDoGlobalActions || canOffboard) && (
           <div className="flex items-center gap-2 flex-wrap justify-end shrink-0">
-            <Button size="sm" onClick={() => togglePanel("edit")}>
-              {activePanel === "edit" ? "Cancel Edit" : "Edit"}
-            </Button>
+            {canEditBasic && (
+              <Button size="sm" onClick={() => togglePanel("edit")}>
+                {activePanel === "edit" ? "Cancel Edit" : "Edit"}
+              </Button>
+            )}
             {employee.employment_status === "active" && (
               <>
-                <Button size="sm" variant="secondary" onClick={() => togglePanel("promote")}>Promote</Button>
-                <Button size="sm" variant="secondary" onClick={() => togglePanel("transfer")}>Transfer</Button>
-                <Button size="sm" variant="secondary" onClick={() => togglePanel("change_manager")}>Change Manager</Button>
-                <Button size="sm" variant="ghost" className="text-danger" onClick={() => togglePanel("offboard")}>Offboard</Button>
+                {canDoGlobalActions && <Button size="sm" variant="secondary" onClick={() => togglePanel("promote")}>Promote</Button>}
+                {canDoGlobalActions && <Button size="sm" variant="secondary" onClick={() => togglePanel("transfer")}>Transfer</Button>}
+                {canDoGlobalActions && <Button size="sm" variant="secondary" onClick={() => togglePanel("change_manager")}>Change Manager</Button>}
+                {canOffboard && <Button size="sm" variant="ghost" className="text-danger" onClick={() => togglePanel("offboard")}>Offboard</Button>}
               </>
             )}
           </div>
@@ -740,10 +751,11 @@ export function EmployeeDetailView({ employeeId }: EmployeeDetailViewProps) {
       {/* Private Info — self or admin only */}
       {canViewPrivate && <EmployeePrivateInfo emp={employee} />}
 
-      {/* Admin-only sections below */}
-      {canManageEmployee && <ShiftAssignmentPanel employeeId={employeeId} />}
+      {/* Shift Assignment — needs shift:update (HR Dir, Admin) */}
+      {canManageShift && <ShiftAssignmentPanel employeeId={employeeId} />}
 
-      {canManageEmployee && (
+      {/* Roles — only role:assign (Admin only) */}
+      {canAssignRoles && (
         <Card>
           <CardHeader><h3 className="text-sm font-semibold text-text-primary">Roles</h3></CardHeader>
           <CardContent>
@@ -752,8 +764,8 @@ export function EmployeeDetailView({ employeeId }: EmployeeDetailViewProps) {
         </Card>
       )}
 
-      {/* Account Actions — only for global admin */}
-      <Can resource="user" action="update" minScope="global">
+      {/* Account Actions — global employee:update (HR Mgr, HR Dir, Admin) */}
+      {canDoGlobalActions && (
         <Card>
           <CardHeader><h3 className="text-sm font-semibold text-text-primary">Account Actions</h3></CardHeader>
           <CardContent className="space-y-3">
@@ -770,7 +782,7 @@ export function EmployeeDetailView({ employeeId }: EmployeeDetailViewProps) {
             )}
           </CardContent>
         </Card>
-      </Can>
+      )}
     </div>
   );
 }

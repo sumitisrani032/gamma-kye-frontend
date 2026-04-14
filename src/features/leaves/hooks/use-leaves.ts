@@ -29,20 +29,24 @@ export function useLeaves(): UseLeavesReturn {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [statusFilter, setStatusFilter] = useState("");
   const [myEmployeeId, setMyEmployeeId] = useState<string | null>(null);
+  const [profileReady, setProfileReady] = useState(false);
 
   const clearFormErrors = useCallback(() => {
     setFormError("");
     setFieldErrors({});
   }, []);
 
-  // Resolve current user's employee ID once
+  // Step 1: Resolve employee ID first — nothing renders until this completes
   useEffect(() => {
     getMyProfile()
       .then((p) => setMyEmployeeId(p.employee.id))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setProfileReady(true));
   }, []);
 
+  // Step 2: Only fetch leave data after employee ID is known
   const refresh = useCallback(async () => {
+    if (!profileReady) return;
     setError("");
     try {
       const [bal, reqs] = await Promise.all([
@@ -50,19 +54,15 @@ export function useLeaves(): UseLeavesReturn {
         listLeaveRequests(statusFilter || undefined),
       ]);
       setBalances(bal);
-      // Filter to only current user's requests (backend may return org-wide for admins)
-      if (myEmployeeId) {
-        setRequests(reqs.filter((r) => r.employee.id === myEmployeeId));
-      } else {
-        setRequests(reqs);
-      }
+      // Filter to own requests only (backend may return org-wide for admin)
+      setRequests(myEmployeeId ? reqs.filter((r) => r.employee.id === myEmployeeId) : reqs);
     } catch (err) {
       const apiError = err as ApiError;
       setError(apiError.error || "Failed to load leave data.");
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, myEmployeeId]);
+  }, [statusFilter, myEmployeeId, profileReady]);
 
   useEffect(() => { refresh(); }, [refresh]);
 

@@ -1,20 +1,12 @@
 import { api } from "@/services/api-client";
-import type { EmployeeDetail, EmployeeListItem, OrgNode } from "@/types";
+import type { EmployeeDetail, OrgNode } from "@/types";
 
 /**
  * Fetch all employees as flat OrgNode list with reporting_manager_id.
  *
- * Strategy: The list endpoint (/manage/employees) doesn't include reporting_manager,
- * so we use the detail endpoint per employee. For scalability, we batch fetch in parallel
- * with concurrency control.
- *
- * For admin: fetches via /manage/employees (full list), then details.
- * For employees: fetches via /employees (directory, scoped by RBAC).
+ * Uses /employees directory (shows ALL employees to all users) for the list,
+ * then fetches detail per employee for reporting_manager data.
  */
-
-interface EmployeeListResponse {
-  employees: EmployeeListItem[];
-}
 
 interface EmployeeDetailResponse {
   employee: EmployeeDetail;
@@ -37,26 +29,16 @@ function toOrgNode(detail: EmployeeDetail): OrgNode {
   };
 }
 
-/** Fetch employee detail — tries manage endpoint first, falls back to directory. */
+/** Fetch employee detail from directory endpoint (available to all authenticated users). */
 async function fetchDetail(id: string): Promise<EmployeeDetail> {
-  try {
-    const data = await api.get<EmployeeDetailResponse>(`/api/v1/manage/employees/${id}`);
-    return data.employee;
-  } catch {
-    const data = await api.get<EmployeeDetailResponse>(`/api/v1/employees/${id}`);
-    return data.employee;
-  }
+  const data = await api.get<EmployeeDetailResponse>(`/api/v1/employees/${id}`);
+  return data.employee;
 }
 
-/** Fetch all employee IDs from the list endpoint. */
+/** Fetch all employee IDs from directory (shows ALL employees, not scoped by role). */
 async function fetchEmployeeIds(): Promise<string[]> {
-  try {
-    const data = await api.get<EmployeeListResponse>("/api/v1/manage/employees?status=active");
-    return data.employees.map((e) => e.id);
-  } catch {
-    const data = await api.get<{ employees: { id: string }[] }>("/api/v1/employees");
-    return data.employees.map((e) => e.id);
-  }
+  const data = await api.get<{ employees: { id: string }[] }>("/api/v1/employees");
+  return data.employees.map((e) => e.id);
 }
 
 /** Fetch details in batches to avoid overwhelming the server. */

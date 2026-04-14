@@ -41,10 +41,8 @@ function ApprovalsContent() {
     // My Requests — always visible (any user can initiate workflows)
     tabs.push(TABS[0]);
 
-    // Pending Approvals — visible to users who can be approvers.
-    // Managers/HR/admins have leave_request:approve in their permissions.
-    // Plain employees (self-scope only) never appear as step approvers.
-    if (can("leave_request", "approve")) {
+    // Pending Approvals — visible if user has any approve permission on any resource
+    if (can("leave_request", "approve") || can("attendance_regularization", "approve")) {
       tabs.push(TABS[1]);
     }
 

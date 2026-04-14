@@ -17,27 +17,34 @@ interface NavItem {
 }
 
 const navigation: NavItem[] = [
-  // Always visible
+  // Always visible to all authenticated users
   { name: "Dashboard", href: "/dashboard", icon: DashboardIcon },
-  { name: "My Profile", href: "/my-profile", icon: ProfileIcon, requireRole: "Employee" },
+  { name: "My Profile", href: "/my-profile", icon: ProfileIcon },
   { name: "Employees", href: "/employees", icon: EmployeesIcon },
+  { name: "Leaves", href: "/leaves", icon: LeavesIcon },
+  { name: "Attendance", href: "/attendance", icon: AttendanceIcon },
   { name: "Approvals", href: "/approvals", icon: ApprovalsIcon },
   { name: "Organization", href: "/org-structure", icon: OrgIcon },
-  { name: "Leaves", href: "/leaves", icon: LeavesIcon, resource: "leave_request", requireRole: "Employee" },
-  { name: "Attendance", href: "/attendance", icon: AttendanceIcon, requireRole: "Employee" },
+
+  // Module-gated
   { name: "Payroll", href: "/payroll", icon: PayrollIcon, resource: "payroll" },
   { name: "Reports", href: "/reports", icon: ReportsIcon, resource: "report" },
 
-  // Admin settings — single entry point to settings hub
-  { name: "Settings", href: "/settings", icon: SettingsIcon, resource: "tenant_settings" },
+  // Admin settings — visible if user has any admin-level permission
+  { name: "Settings", href: "/settings", icon: SettingsIcon },
 ];
 
 export function TenantSidebar() {
   const pathname = usePathname();
   const { tenant, user, logout, canAccessModule, canWithScope } = useAuth();
 
+  const SETTINGS_RESOURCES = ["tenant_settings", "leave_type", "shift", "role", "workflow", "audit_log"];
+  const canSeeSettings = SETTINGS_RESOURCES.some((r) => canAccessModule(r));
+
   const visibleNav = navigation.filter((item) => {
     if (item.requireRole && !user?.roles?.includes(item.requireRole)) return false;
+    // Settings: visible if user has any admin resource permission
+    if (item.href === "/settings") return canSeeSettings;
     if (!item.resource) return true;
     if (item.action && item.minScope) {
       return canWithScope(item.resource, item.action, item.minScope);
