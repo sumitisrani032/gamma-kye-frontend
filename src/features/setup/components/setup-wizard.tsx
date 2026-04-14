@@ -4,11 +4,34 @@ import { useState } from "react";
 import { Button, Card, Alert } from "@/components/ui";
 import { useSetupWizard } from "../hooks/use-setup-wizard";
 import { CompanyList } from "@/features/companies/components/company-list";
+import { LocationList } from "@/features/locations/components/location-list";
+import { DepartmentList } from "@/features/departments/components/department-list";
+import { DesignationList } from "@/features/designations/components/designation-list";
+import { GradeList } from "@/features/grades/components/grade-list";
+import { ShiftList } from "@/features/shifts/components/shift-list";
+import { LeaveTypeList } from "@/features/leave-types/components/leave-type-list";
+import { LeavePolicyList } from "@/features/leave-policies/components/leave-policy-list";
+import { HolidayCalendarList } from "@/features/holiday-calendars/components/holiday-calendar-list";
+import { WorkflowSetupList } from "@/features/workflows/components/workflow-setup-list";
+import { BusinessUnitList } from "@/features/business-units/components/business-unit-list";
+import { OvertimeRuleList } from "@/features/overtime-rules/components/overtime-rule-list";
 import type { SetupStep } from "@/types";
 
 /** Map step keys to their inline config components. Steps without a component show a placeholder. */
 const STEP_COMPONENTS: Record<string, React.FC<{ onDataChange: () => void }>> = {
   company: ({ onDataChange }) => <CompanyList onDataChange={onDataChange} />,
+  location: ({ onDataChange }) => <LocationList onDataChange={onDataChange} />,
+  department: ({ onDataChange }) => <DepartmentList onDataChange={onDataChange} />,
+  designation: ({ onDataChange }) => <DesignationList onDataChange={onDataChange} />,
+  grade: ({ onDataChange }) => <GradeList onDataChange={onDataChange} />,
+  shift: ({ onDataChange }) => <ShiftList onDataChange={onDataChange} />,
+  leave_type: ({ onDataChange }) => <LeaveTypeList onDataChange={onDataChange} />,
+  leave_policy: ({ onDataChange }) => <LeavePolicyList onDataChange={onDataChange} />,
+  holiday_calendar: ({ onDataChange }) => <HolidayCalendarList onDataChange={onDataChange} />,
+  leave_workflow: ({ onDataChange }) => <WorkflowSetupList onDataChange={onDataChange} />,
+  reg_workflow: ({ onDataChange }) => <WorkflowSetupList onDataChange={onDataChange} entityType="attendance_regularization" />,
+  business_unit: ({ onDataChange }) => <BusinessUnitList onDataChange={onDataChange} />,
+  overtime_rule: ({ onDataChange }) => <OvertimeRuleList onDataChange={onDataChange} />,
 };
 
 function CheckIcon() {
