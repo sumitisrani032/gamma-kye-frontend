@@ -61,20 +61,28 @@ export function RoleList() {
                     {role.permissions_count !== 1 ? "s" : ""}
                   </p>
                 </div>
-                {!role.is_system_role && can("role", "delete") && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (confirm(`Delete "${role.name}"?`)) {
-                        remove(role.id);
-                      }
-                    }}
-                  >
-                    Delete
-                  </Button>
-                )}
+                <div className="flex items-center gap-1 shrink-0">
+                  {!role.is_system_role && can("role", "update") && (
+                    <Button variant="secondary" size="sm" onClick={(e) => { e.preventDefault(); window.location.href = `/settings/roles/${role.id}`; }}>
+                      Edit
+                    </Button>
+                  )}
+                  {!role.is_system_role && can("role", "delete") && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-danger"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (confirm(`Delete "${role.name}"?`)) {
+                          remove(role.id);
+                        }
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </Link>
