@@ -594,10 +594,12 @@ export function EmployeeDetailView({ employeeId }: EmployeeDetailViewProps) {
   // Determine access level for THIS employee
   const isSelf = employee?.user_id === String(user?.id);
   const scope = getScope("employee", "update");
-  // Only global-scope (Tenant Admin / HR) can perform admin actions on employees
-  const canManageEmployee = !isSelf && scope === "global";
+  const isGlobalAdmin = scope === "global";
+  // Global admin can manage any employee (including self for edit purposes)
+  // Non-global users cannot manage anyone
+  const canManageEmployee = isGlobalAdmin;
   // Private details visible to self or global-scope admins
-  const canViewPrivate = isSelf || scope === "global";
+  const canViewPrivate = isSelf || isGlobalAdmin;
 
   const togglePanel = (panel: ActionPanel) => setActivePanel((prev) => (prev === panel ? null : panel));
 
