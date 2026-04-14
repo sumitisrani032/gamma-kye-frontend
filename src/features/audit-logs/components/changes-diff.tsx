@@ -1,5 +1,5 @@
 interface ChangesDiffProps {
-  changes: Record<string, [unknown, unknown]>;
+  changes: Record<string, unknown>;
 }
 
 export function ChangesDiff({ changes }: ChangesDiffProps) {
@@ -10,14 +10,23 @@ export function ChangesDiff({ changes }: ChangesDiffProps) {
 
   return (
     <div className="space-y-1">
-      {entries.map(([field, [oldVal, newVal]]) => (
-        <div key={field} className="text-xs">
-          <span className="font-medium text-text-primary">{field}:</span>{" "}
-          <span className="text-red-600 line-through">{String(oldVal)}</span>
-          {" → "}
-          <span className="text-green-600">{String(newVal)}</span>
-        </div>
-      ))}
+      {entries.map(([field, value]) => {
+        const isChange = Array.isArray(value) && value.length === 2;
+        return (
+          <div key={field} className="text-xs">
+            <span className="font-medium text-text-primary">{field}:</span>{" "}
+            {isChange ? (
+              <>
+                <span className="text-red-600 line-through">{String(value[0])}</span>
+                {" → "}
+                <span className="text-green-600">{String(value[1])}</span>
+              </>
+            ) : (
+              <span className="text-green-600">{String(value)}</span>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
