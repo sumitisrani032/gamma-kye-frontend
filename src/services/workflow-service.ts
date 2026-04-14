@@ -1,6 +1,7 @@
 import { api } from "./api-client";
 import type {
   WorkflowInstance,
+  WorkflowInstanceDetail,
   WorkflowDefinition,
   WorkflowDefinitionSummary,
   CreateWorkflowDefinitionRequest,
@@ -16,8 +17,8 @@ interface WorkflowInstanceListResponse {
   workflow_instances: WorkflowInstance[];
 }
 
-interface WorkflowInstanceResponse {
-  workflow_instance: WorkflowInstance;
+interface WorkflowInstanceDetailResponse {
+  workflow_instance: WorkflowInstanceDetail;
 }
 
 interface WorkflowDefinitionListResponse {
@@ -58,8 +59,8 @@ export async function getWorkflowInstances(
 
 export async function getWorkflowInstance(
   id: string
-): Promise<WorkflowInstance> {
-  const { workflow_instance } = await api.get<WorkflowInstanceResponse>(
+): Promise<WorkflowInstanceDetail> {
+  const { workflow_instance } = await api.get<WorkflowInstanceDetailResponse>(
     `/api/v1/workflow_instances/${id}`
   );
   return workflow_instance;
@@ -68,8 +69,8 @@ export async function getWorkflowInstance(
 export async function approveWorkflow(
   id: string,
   comments: string
-): Promise<WorkflowInstance> {
-  const { workflow_instance } = await api.post<WorkflowInstanceResponse>(
+): Promise<WorkflowInstanceDetail> {
+  const { workflow_instance } = await api.post<WorkflowInstanceDetailResponse>(
     `/api/v1/workflow_instances/${id}/approve`,
     { comments }
   );
@@ -79,8 +80,8 @@ export async function approveWorkflow(
 export async function rejectWorkflow(
   id: string,
   comments: string
-): Promise<WorkflowInstance> {
-  const { workflow_instance } = await api.post<WorkflowInstanceResponse>(
+): Promise<WorkflowInstanceDetail> {
+  const { workflow_instance } = await api.post<WorkflowInstanceDetailResponse>(
     `/api/v1/workflow_instances/${id}/reject`,
     { comments }
   );
@@ -89,8 +90,8 @@ export async function rejectWorkflow(
 
 export async function cancelWorkflow(
   id: string
-): Promise<WorkflowInstance> {
-  const { workflow_instance } = await api.post<WorkflowInstanceResponse>(
+): Promise<WorkflowInstanceDetail> {
+  const { workflow_instance } = await api.post<WorkflowInstanceDetailResponse>(
     `/api/v1/workflow_instances/${id}/cancel`
   );
   return workflow_instance;
@@ -100,10 +101,11 @@ export async function cancelWorkflow(
 /*  Workflow Definitions — /api/v1/manage/workflow_definitions         */
 /* ------------------------------------------------------------------ */
 
-export async function getWorkflowDefinitions(): Promise<WorkflowDefinitionSummary[]> {
+export async function getWorkflowDefinitions(entityType?: string): Promise<WorkflowDefinitionSummary[]> {
+  const query = entityType ? `?entity_type=${encodeURIComponent(entityType)}` : "";
   const { workflow_definitions } =
     await api.get<WorkflowDefinitionListResponse>(
-      "/api/v1/manage/workflow_definitions"
+      `/api/v1/manage/workflow_definitions${query}`
     );
   return workflow_definitions;
 }
@@ -155,7 +157,7 @@ export async function addWorkflowStep(
 ): Promise<WorkflowStep> {
   const { step } = await api.post<WorkflowStepResponse>(
     `/api/v1/manage/workflow_definitions/${definitionId}/steps`,
-    payload
+    { step: payload }
   );
   return step;
 }
@@ -167,7 +169,7 @@ export async function updateWorkflowStep(
 ): Promise<WorkflowStep> {
   const { step } = await api.put<WorkflowStepResponse>(
     `/api/v1/manage/workflow_definitions/${definitionId}/steps/${stepId}`,
-    payload
+    { step: payload }
   );
   return step;
 }

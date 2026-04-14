@@ -54,6 +54,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const data = await response.json();
 
   if (!response.ok) {
+    // Handle 403 "Organization setup required" globally
+    if (response.status === 403 && data.error === "Organization setup required") {
+      window.location.href = "/setup";
+      throw { status: 403, error: data.error } as ApiError;
+    }
+
     const error: ApiError = { status: response.status, ...data };
     throw error;
   }
