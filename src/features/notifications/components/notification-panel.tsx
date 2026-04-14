@@ -19,14 +19,15 @@ const TYPE_COLORS: Record<string, string> = {
   system: "bg-surface-tertiary text-text-secondary",
 };
 
-function getDeepLink(referenceType: string, referenceId: string): string {
+function getDeepLink(referenceType: string | null, referenceId: string | null): string | null {
+  if (!referenceType || !referenceId) return null;
   const routes: Record<string, string> = {
     workflow_instance: `/approvals/${referenceId}`,
     leave_request: `/leaves/${referenceId}`,
     employee: `/employees/${referenceId}`,
     attendance: `/attendance/${referenceId}`,
   };
-  return routes[referenceType] || "/dashboard";
+  return routes[referenceType] || null;
 }
 
 function timeAgo(dateString: string): string {
@@ -52,8 +53,11 @@ export function NotificationPanel({
 }: NotificationPanelProps) {
   const handleClick = (n: Notification) => {
     if (!n.is_read) onMarkAsRead(n.id);
-    onClose();
-    window.location.href = getDeepLink(n.reference_type, n.reference_id);
+    const link = getDeepLink(n.reference_type, n.reference_id);
+    if (link) {
+      onClose();
+      window.location.href = link;
+    }
   };
 
   return (
