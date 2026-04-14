@@ -3,9 +3,12 @@
 import { ProtectedRoute } from "@/components/common/protected-route";
 import { TenantSidebar } from "@/components/layout/tenant-sidebar";
 import { TopBar } from "@/components/layout/top-bar";
+import { useAuth } from "@/contexts/auth-context";
 import { LeavesPage } from "@/features/leaves/components/leaves-page";
 
 export default function LeavesRoute() {
+  const { user } = useAuth();
+
   return (
     <ProtectedRoute>
       <div className="flex h-screen overflow-hidden">
@@ -13,7 +16,7 @@ export default function LeavesRoute() {
         <main className="flex-1 overflow-y-auto">
           <TopBar title="Leaves" description="Apply for leave and track your requests" />
           <div className="px-8 py-6">
-            <LeavesPage />
+            <LeavesPage key={user?.id} />
           </div>
         </main>
       </div>

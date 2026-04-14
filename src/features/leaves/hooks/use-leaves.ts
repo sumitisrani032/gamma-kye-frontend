@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { getLeaveBalances, listLeaveRequests, applyLeave, cancelLeaveRequest } from "@/services/leave-request-service";
+import { getMyProfile } from "@/services/my-profile-service";
 import type { LeaveBalance, LeaveRequest, LeaveRequestFormData, ApiError } from "@/types";
 
 interface UseLeavesReturn {
@@ -27,10 +28,18 @@ export function useLeaves(): UseLeavesReturn {
   const [formError, setFormError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [statusFilter, setStatusFilter] = useState("");
+  const [myEmployeeId, setMyEmployeeId] = useState<string | null>(null);
 
   const clearFormErrors = useCallback(() => {
     setFormError("");
     setFieldErrors({});
+  }, []);
+
+  // Resolve current user's employee ID once
+  useEffect(() => {
+    getMyProfile()
+      .then((p) => setMyEmployeeId(p.employee.id))
+      .catch(() => {});
   }, []);
 
   const refresh = useCallback(async () => {
@@ -38,17 +47,22 @@ export function useLeaves(): UseLeavesReturn {
     try {
       const [bal, reqs] = await Promise.all([
         getLeaveBalances(),
-        listLeaveRequests({ status: statusFilter || undefined, my_requests: true }),
+        listLeaveRequests(statusFilter || undefined),
       ]);
       setBalances(bal);
-      setRequests(reqs);
+      // Filter to only current user's requests (backend may return org-wide for admins)
+      if (myEmployeeId) {
+        setRequests(reqs.filter((r) => r.employee.id === myEmployeeId));
+      } else {
+        setRequests(reqs);
+      }
     } catch (err) {
       const apiError = err as ApiError;
       setError(apiError.error || "Failed to load leave data.");
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  }, [statusFilter, myEmployeeId]);
 
   useEffect(() => { refresh(); }, [refresh]);
 

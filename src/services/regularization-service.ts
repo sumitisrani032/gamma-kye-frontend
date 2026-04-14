@@ -3,9 +3,8 @@ import type { RegularizationSummary, RegularizationDetail, RegularizationFormDat
 
 const BASE = "/api/v1/attendance_regularizations";
 
-export async function listRegularizations(myRequests = true): Promise<RegularizationSummary[]> {
-  const query = myRequests ? "?my_requests=true" : "";
-  const data = await api.get<{ regularizations: RegularizationSummary[] }>(`${BASE}${query}`);
+export async function listRegularizations(): Promise<RegularizationSummary[]> {
+  const data = await api.get<{ regularizations: RegularizationSummary[] }>(BASE);
   return data.regularizations;
 }
 

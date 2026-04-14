@@ -130,7 +130,7 @@ export function useDashboard(): DashboardData {
     // 3. Team on leave — only fetch if user has direct reports, scoped via reporting chain
     // Use approved leave requests but only show team members (not entire org)
     try {
-      const allLeaves = await listLeaveRequests({ status: "approved" });
+      const allLeaves = await listLeaveRequests("approved");
       const todayStr = new Date().toISOString().slice(0, 10);
       const myId = updates.employee?.id;
 
