@@ -3,7 +3,13 @@ export interface TenantSettings {
   currency: string;
   timezone: string;
   date_format: string;
+  time_format: string;
   financial_year_start: string;
+  employee_number_format: string;
+  attendance_auto_clockout: boolean;
+  leave_requires_reason: boolean;
+  max_leave_advance_days: number;
+  password_min_length: number;
 }
 
 /** Slim tenant returned by /auth/me and /auth/login */
@@ -164,8 +170,8 @@ export interface Notification {
   title: string;
   body: string;
   notification_type: NotificationType;
-  reference_type: string;
-  reference_id: string;
+  reference_type: string | null;
+  reference_id: string | null;
   is_read: boolean;
   read_at: string | null;
   created_at: string;
@@ -302,7 +308,9 @@ export interface Attachment {
   file_name: string;
   file_type: string;
   file_size: number;
-  s3_key: string;
+  entity_type: string;
+  entity_id: string;
+  uploaded_by: UserSummary;
   created_at: string;
 }
 
@@ -312,6 +320,8 @@ export interface CreateAttachmentRequest {
     file_type: string;
     file_size: number;
     s3_key: string;
+    entity_type: string;
+    entity_id: string;
   };
 }
 
@@ -384,4 +394,711 @@ export interface CompanyFormData {
   website?: string;
   incorporation_date?: string;
   is_primary: boolean;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Locations                                                          */
+/* ------------------------------------------------------------------ */
+
+/** Returned by GET /manage/locations (list) */
+export interface LocationSummary {
+  id: string;
+  name: string;
+  code: string;
+  city: string;
+  state: string;
+  country: string;
+  timezone: string;
+  is_headquarters: boolean;
+  status: string;
+}
+
+/** Returned by POST, PUT /manage/locations (detail) */
+export interface LocationDetail extends LocationSummary {
+  address: string | null;
+  pincode: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  created_at: string;
+}
+
+export interface LocationFormData {
+  name: string;
+  code: string;
+  city: string;
+  state: string;
+  country: string;
+  pincode?: string;
+  address?: string;
+  timezone: string;
+  is_headquarters: boolean;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Departments                                                        */
+/* ------------------------------------------------------------------ */
+
+/** Embedded employee summary in department detail */
+export interface EmployeeSummaryEmbed {
+  id: string;
+  employee_number: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  email_official: string;
+  phone: string | null;
+  designation: { id: string; name: string } | null;
+  department: { id: string; name: string } | null;
+  employment_status: string;
+  profile_photo_url: string | null;
+}
+
+/** Returned by GET /manage/departments (list) */
+export interface DepartmentSummary {
+  id: string;
+  name: string;
+  code: string;
+  company_id: string;
+  parent_department_id: string | null;
+  head_employee_id: string | null;
+  status: string;
+  employees_count: number;
+}
+
+/** Returned by GET /manage/departments/:id, POST, PUT, PATCH */
+export interface DepartmentDetail extends DepartmentSummary {
+  description: string | null;
+  head_employee: EmployeeSummaryEmbed | null;
+  sub_departments: DepartmentSummary[];
+  created_at: string;
+}
+
+export interface DepartmentFormData {
+  name: string;
+  code: string;
+  company_id: string;
+  parent_department_id?: string | null;
+  description?: string;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Designations                                                       */
+/* ------------------------------------------------------------------ */
+
+export interface Designation {
+  id: string;
+  name: string;
+  code: string | null;
+  level: number;
+  description: string | null;
+  status: string;
+}
+
+export interface DesignationFormData {
+  name: string;
+  code?: string;
+  level: number;
+  description?: string;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Grades                                                             */
+/* ------------------------------------------------------------------ */
+
+export interface Grade {
+  id: string;
+  name: string;
+  code: string | null;
+  rank: number;
+  description: string | null;
+  status: string;
+}
+
+export interface GradeFormData {
+  name: string;
+  code?: string;
+  rank: number;
+  description?: string;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Shifts                                                             */
+/* ------------------------------------------------------------------ */
+
+export type WeekDay = "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday";
+
+export interface Shift {
+  id: string;
+  name: string;
+  code: string;
+  start_time: string;
+  end_time: string;
+  grace_minutes: number;
+  full_day_hours: string;
+  half_day_hours: string;
+  is_night_shift: boolean;
+  weekly_offs: WeekDay[];
+  is_flexible: boolean;
+  is_default: boolean;
+  is_active: boolean;
+}
+
+export interface ShiftFormData {
+  name: string;
+  code: string;
+  start_time: string;
+  end_time: string;
+  grace_minutes: number;
+  full_day_hours: number;
+  half_day_hours: number;
+  weekly_offs: WeekDay[];
+  is_default: boolean;
+  is_active: boolean;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Shift Assignments                                                  */
+/* ------------------------------------------------------------------ */
+
+export interface ShiftAssignment {
+  id: string;
+  employee_id: string;
+  shift: Shift;
+  effective_from: string;
+  effective_to: string | null;
+  assigned_by: { id: string; first_name: string; last_name: string } | null;
+  created_at: string;
+}
+
+export interface ShiftAssignmentFormData {
+  employee_id: string;
+  shift_id: string;
+  effective_from: string;
+  effective_to?: string | null;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Leave Types                                                        */
+/* ------------------------------------------------------------------ */
+
+/** Returned by GET /manage/leave_types (list) */
+export interface LeaveTypeSummary {
+  id: string;
+  name: string;
+  code: string;
+  is_paid: boolean;
+  is_carry_forward: boolean;
+  is_encashable: boolean;
+  is_half_day_allowed: boolean;
+  is_active: boolean;
+  color_code: string;
+}
+
+/** Returned by GET /manage/leave_types/:id, POST, PUT (detail) */
+export interface LeaveTypeDetail extends LeaveTypeSummary {
+  description: string | null;
+  max_carry_forward_days: string;
+  max_encashment_days: string;
+  is_negative_balance_allowed: boolean;
+  max_negative_days: string;
+  requires_attachment: boolean;
+  min_days_before_application: number;
+  max_consecutive_days: number | null;
+  gender_applicable: string | null;
+  created_at: string;
+}
+
+export interface LeaveTypeFormData {
+  name: string;
+  code: string;
+  is_paid: boolean;
+  is_carry_forward: boolean;
+  is_encashable: boolean;
+  is_half_day_allowed: boolean;
+  is_active: boolean;
+  color_code: string;
+  description?: string;
+  max_carry_forward_days?: number;
+  max_encashment_days?: number;
+  is_negative_balance_allowed?: boolean;
+  max_negative_days?: number;
+  requires_attachment?: boolean;
+  min_days_before_application?: number;
+  max_consecutive_days?: number | null;
+  gender_applicable?: string | null;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Leave Policies                                                     */
+/* ------------------------------------------------------------------ */
+
+export type AccrualType = "annual" | "monthly" | "none";
+export type ApplicableTo = "all" | "department" | "designation" | "grade" | "location";
+
+/** Returned by GET /manage/leave_policies (list) */
+export interface LeavePolicySummary {
+  id: string;
+  name: string;
+  leave_type_id: string;
+  accrual_type: AccrualType;
+  annual_quota: string;
+  applicable_to: ApplicableTo;
+  is_active: boolean;
+  effective_from: string;
+  effective_to: string | null;
+}
+
+/** Returned by GET /manage/leave_policies/:id, POST, PUT (detail) */
+export interface LeavePolicyDetail extends LeavePolicySummary {
+  monthly_accrual: string | null;
+  prorate_on_joining: boolean;
+  prorate_on_exit: boolean;
+  proration_basis: string;
+  applicable_ids: string[];
+  min_days_per_request: number | null;
+  max_days_per_request: number | null;
+  requires_approval: boolean;
+  advance_days_required: number;
+  created_at: string;
+}
+
+export interface LeavePolicyFormData {
+  name: string;
+  leave_type_id: string;
+  accrual_type: AccrualType;
+  annual_quota: number;
+  applicable_to: ApplicableTo;
+  is_active?: boolean;
+  effective_from: string;
+  effective_to?: string | null;
+  prorate_on_joining?: boolean;
+  prorate_on_exit?: boolean;
+  requires_approval?: boolean;
+  advance_days_required?: number;
+  min_days_per_request?: number | null;
+  max_days_per_request?: number | null;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Holiday Calendars + Holidays                                       */
+/* ------------------------------------------------------------------ */
+
+export type HolidayType = "mandatory" | "optional";
+
+export interface Holiday {
+  id: string;
+  name: string;
+  date: string;
+  holiday_type: HolidayType;
+  is_half_day: boolean;
+  description: string | null;
+}
+
+export interface HolidayFormData {
+  name: string;
+  date: string;
+  holiday_type: HolidayType;
+  is_half_day?: boolean;
+  description?: string;
+}
+
+/** Returned by GET /manage/holiday_calendars (list) and POST */
+export interface HolidayCalendarSummary {
+  id: string;
+  name: string;
+  year: number;
+  location: string | null;
+  is_active: boolean;
+  holidays_count: number;
+}
+
+/** Returned by GET /manage/holiday_calendars/:id (detail) */
+export interface HolidayCalendarDetail extends HolidayCalendarSummary {
+  holidays: Holiday[];
+}
+
+export interface HolidayCalendarFormData {
+  name: string;
+  year: number;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Business Units                                                     */
+/* ------------------------------------------------------------------ */
+
+export interface BusinessUnit {
+  id: string;
+  name: string;
+  code: string;
+  description: string | null;
+  company_id: string;
+  status: string;
+}
+
+export interface BusinessUnitFormData {
+  name: string;
+  code: string;
+  company_id: string;
+  description?: string;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Overtime Rules                                                     */
+/* ------------------------------------------------------------------ */
+
+export interface OvertimeRule {
+  id: string;
+  name: string;
+  threshold_hours: string;
+  rate_multiplier: string;
+  max_daily_ot_hours: string | null;
+  max_monthly_ot_hours: string | null;
+  applicable_on_holidays: boolean;
+  holiday_rate_multiplier: string;
+  is_active: boolean;
+}
+
+export interface OvertimeRuleFormData {
+  name: string;
+  threshold_hours: number;
+  rate_multiplier: number;
+  max_daily_ot_hours?: number | null;
+  max_monthly_ot_hours?: number | null;
+  applicable_on_holidays: boolean;
+  holiday_rate_multiplier?: number;
+  is_active: boolean;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Employees                                                          */
+/* ------------------------------------------------------------------ */
+
+export type EmploymentType = "full_time" | "part_time" | "contract" | "intern" | "consultant";
+export type EmploymentStatus = "active" | "on_notice" | "exited" | "absconding";
+
+/** Returned by GET /employees (directory — slim, flat strings) */
+export interface DirectoryEmployee {
+  id: string;
+  employee_number: string;
+  full_name: string;
+  email_official: string;
+  phone: string | null;
+  designation: string;
+  department: string;
+  location: string;
+  profile_photo_url: string | null;
+}
+
+/** Returned by GET /manage/employees (list) */
+export interface EmployeeListItem {
+  id: string;
+  employee_number: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  email_official: string;
+  phone: string | null;
+  designation: { id: string; name: string; level: number } | null;
+  department: { id: string; name: string } | null;
+  employment_status: EmploymentStatus;
+  profile_photo_url: string | null;
+}
+
+export interface EmployeeUserAccount {
+  id: string;
+  email: string;
+  status: string;
+  roles: { id: string; name: string; is_system_role: boolean }[];
+  last_login_at: string | null;
+  mfa_enabled: boolean;
+}
+
+/** Returned by GET /manage/employees/:id, POST, PUT (detail) */
+export interface EmployeeDetail extends EmployeeListItem {
+  user_id: string;
+  company_id: string;
+  grade: Grade | null;
+  location: LocationSummary | null;
+  business_unit: BusinessUnit | null;
+  reporting_manager: EmployeeListItem | null;
+  direct_reports_count: number;
+  email_personal: string | null;
+  date_of_birth: string | null;
+  gender: string | null;
+  marital_status: string | null;
+  blood_group: string | null;
+  nationality: string | null;
+  date_of_joining: string;
+  date_of_confirmation: string | null;
+  employment_type: EmploymentType;
+  notice_period_days: number;
+  date_of_exit: string | null;
+  exit_reason: string | null;
+  user_account: EmployeeUserAccount;
+  created_at: string;
+}
+
+export interface EmployeeOnboardData {
+  employee: {
+    first_name: string;
+    last_name: string;
+    email_official: string;
+    company_id: string;
+    department_id: string;
+    designation_id: string;
+    grade_id?: string;
+    location_id: string;
+    date_of_joining: string;
+    employment_type: EmploymentType;
+    gender?: string;
+    reporting_manager_id?: string;
+    phone?: string;
+  };
+  password?: string;
+  password_confirmation?: string;
+  user_id?: string;
+  personal_detail?: {
+    current_address?: string;
+    current_city?: string;
+    emergency_contact_name?: string;
+    emergency_contact_phone?: string;
+  };
+  bank_detail?: {
+    bank_name?: string;
+    account_number?: string;
+    ifsc_code?: string;
+  };
+}
+
+export interface PromoteData {
+  designation_id: string;
+  grade_id?: string;
+  effective_date: string;
+  remarks?: string;
+}
+
+export interface TransferData {
+  department_id?: string;
+  location_id?: string;
+  effective_date: string;
+  remarks?: string;
+}
+
+export interface OffboardData {
+  exit_date: string;
+  exit_reason: string;
+}
+
+/* ------------------------------------------------------------------ */
+/*  My Profile                                                         */
+/* ------------------------------------------------------------------ */
+
+export interface PersonalDetail {
+  id: string;
+  current_address: string | null;
+  current_city: string | null;
+  current_state: string | null;
+  current_country: string | null;
+  current_pincode: string | null;
+  permanent_address: string | null;
+  permanent_city: string | null;
+  permanent_state: string | null;
+  permanent_country: string | null;
+  permanent_pincode: string | null;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
+  emergency_contact_relation: string | null;
+  pan_number: string | null;
+  aadhaar_number: string | null;
+  passport_number: string | null;
+  passport_expiry: string | null;
+  uan_number: string | null;
+}
+
+export interface PersonalDetailFormData {
+  current_address?: string;
+  current_city?: string;
+  current_state?: string;
+  current_country?: string;
+  current_pincode?: string;
+  permanent_address?: string;
+  permanent_city?: string;
+  permanent_state?: string;
+  permanent_country?: string;
+  permanent_pincode?: string;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
+  emergency_contact_relation?: string;
+  pan_number?: string;
+  aadhaar_number?: string;
+  passport_number?: string;
+  passport_expiry?: string;
+  uan_number?: string;
+}
+
+export interface LeaveBalance {
+  id: string;
+  leave_type: LeaveTypeSummary;
+  year: number;
+  entitled: string;
+  accrued: string;
+  used: string;
+  carry_forwarded: string;
+  adjusted: string;
+  balance: string;
+}
+
+export interface AttendanceSummary {
+  id: string;
+  year: number;
+  month: number;
+  total_working_days: number;
+  days_present: number;
+  days_absent: number;
+  days_half_day: number;
+  days_on_leave: number;
+  days_holiday: number;
+  days_weekly_off: number;
+  total_hours_worked: string;
+  total_overtime_hours: string;
+  late_count: number;
+  early_exit_count: number;
+}
+
+export interface BankDetail {
+  id: string;
+  bank_name: string;
+  account_number: string;
+  ifsc_code: string;
+  branch_name: string | null;
+  account_type: string | null;
+  is_primary: boolean;
+}
+
+export interface MyProfileResponse {
+  employee: EmployeeDetail;
+  personal_detail: PersonalDetail | null;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Attendance                                                         */
+/* ------------------------------------------------------------------ */
+
+export type AttendanceStatus = "present" | "absent" | "half_day" | "on_leave" | "holiday" | "weekly_off";
+
+export interface AttendanceRecord {
+  id: string;
+  date: string;
+  status: AttendanceStatus;
+  clock_in: string | null;
+  clock_out: string | null;
+  total_hours: string | null;
+  effective_hours: string | null;
+  source: string;
+  is_late: boolean;
+  late_minutes: number;
+  is_early_departure: boolean;
+  overtime_minutes: number;
+  is_regularized: boolean;
+  remarks: string | null;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Attendance Regularization                                          */
+/* ------------------------------------------------------------------ */
+
+export type RegularizationStatus = "pending" | "approved" | "rejected" | "cancelled";
+
+/** Returned by GET /attendance_regularizations (list) */
+export interface RegularizationSummary {
+  id: string;
+  date: string;
+  original_clock_in: string | null;
+  original_clock_out: string | null;
+  requested_clock_in: string;
+  requested_clock_out: string;
+  reason: string;
+  status: RegularizationStatus;
+  created_at: string;
+}
+
+/** Returned by GET /attendance_regularizations/:id (detail) */
+export interface RegularizationDetail extends RegularizationSummary {
+  workflow_instance_id: string | null;
+}
+
+export interface RegularizationFormData {
+  attendance_record_id: string;
+  requested_clock_in: string;
+  requested_clock_out: string;
+  reason: string;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Leave Requests                                                     */
+/* ------------------------------------------------------------------ */
+
+export type LeaveRequestStatus = "pending" | "approved" | "rejected" | "cancelled";
+export type HalfDay = "first_half" | "second_half";
+
+export interface LeaveRequest {
+  id: string;
+  employee: EmployeeListItem;
+  leave_type: LeaveTypeSummary;
+  start_date: string;
+  end_date: string;
+  start_half: HalfDay | null;
+  end_half: HalfDay | null;
+  number_of_days: string;
+  reason: string;
+  status: LeaveRequestStatus;
+  created_at: string;
+  workflow_instance_id: string | null;
+  approved_by: EmployeeListItem | null;
+  approved_at: string | null;
+  cancelled_at: string | null;
+  cancellation_reason: string | null;
+}
+
+export interface LeaveRequestFormData {
+  leave_type_id: string;
+  start_date: string;
+  end_date: string;
+  start_half?: HalfDay | null;
+  end_half?: HalfDay | null;
+  reason: string;
+}
+
+/** Detail — returned by GET /workflow_instances/:id and action responses */
+export interface WorkflowInstanceDetail extends WorkflowInstance {
+  workflow_name: string;
+  step_instances: StepInstance[];
+}
+
+/* ------------------------------------------------------------------ */
+/*  Org Structure                                                      */
+/* ------------------------------------------------------------------ */
+
+export interface OrgNode {
+  id: string;
+  employee_number: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  email_official: string;
+  designation: { id: string; name: string; level: number } | null;
+  department: { id: string; name: string } | null;
+  profile_photo_url: string | null;
+  reporting_manager_id: string | null;
+}
+
+export interface OrgTreeNode extends OrgNode {
+  children: OrgTreeNode[];
+}
+
+export interface MyTeamData {
+  me: OrgNode;
+  manager: OrgNode | null;
+  peers: OrgNode[];
+  directReports: OrgNode[];
 }
