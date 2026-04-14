@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 
 interface ProtectedRouteProps {
@@ -9,14 +9,22 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, setupRequired } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
+    if (loading) return;
+
+    if (!isAuthenticated) {
       router.replace("/login");
+      return;
     }
-  }, [isAuthenticated, loading, router]);
+
+    if (setupRequired && pathname !== "/setup") {
+      router.replace("/setup");
+    }
+  }, [isAuthenticated, loading, setupRequired, pathname, router]);
 
   if (loading) {
     return (
@@ -27,6 +35,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   if (!isAuthenticated) return null;
+  if (setupRequired && pathname !== "/setup") return null;
 
   return <>{children}</>;
 }

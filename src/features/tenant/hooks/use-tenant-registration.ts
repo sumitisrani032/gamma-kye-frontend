@@ -96,7 +96,7 @@ export function useTenantRegistration(): UseTenantRegistrationReturn {
           },
         });
 
-        navigateToTenant(data.tenant.subdomain, "/dashboard");
+        navigateToTenant(data.tenant.subdomain, "/setup");
       } catch (err) {
         const apiError = err as ApiError;
         if (apiError.errors) {

@@ -18,6 +18,7 @@ import {
   getScope,
 } from "@/lib/permissions";
 import { getMe, logout as logoutApi } from "@/services/auth-service";
+import { getSetupStatus } from "@/services/tenant-service";
 import type { User, Tenant } from "@/types";
 
 interface AuthState {
@@ -25,6 +26,7 @@ interface AuthState {
   tenant: Tenant | null;
   loading: boolean;
   isAuthenticated: boolean;
+  setupRequired: boolean;
 }
 
 interface AuthContextValue extends AuthState {
@@ -41,6 +43,7 @@ const UNAUTHENTICATED: AuthState = {
   tenant: null,
   loading: false,
   isAuthenticated: false,
+  setupRequired: false,
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -62,7 +65,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { user, tenant } = await getMe();
       setPermissions(user.permissions);
-      setState({ user, tenant, loading: false, isAuthenticated: true });
+
+      let setupRequired = false;
+      try {
+        const setupStatus = await getSetupStatus();
+        setupRequired = setupStatus.setup_required;
+      } catch {
+        // If setup_status fails (e.g. non-admin), treat as not required
+      }
+
+      setState({ user, tenant, loading: false, isAuthenticated: true, setupRequired });
     } catch {
       tokens.clear();
       clearPermissions();

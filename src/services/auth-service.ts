@@ -7,8 +7,7 @@ import type {
   LoginRequest,
   MeResponse,
   RegisterTenantRequest,
-  RegisterUserRequest,
-  Tenant,
+  TenantDetail,
 } from "@/types";
 
 export async function registerTenant(payload: RegisterTenantRequest): Promise<AuthResponse> {
@@ -27,14 +26,6 @@ export async function registerTenant(payload: RegisterTenantRequest): Promise<Au
 
   tokens.set(data.tokens);
   return data as AuthResponse;
-}
-
-export async function registerUser(payload: RegisterUserRequest): Promise<AuthResponse> {
-  const data = await api.post<AuthResponse>("/api/v1/auth/register/user", {
-    user: payload,
-  });
-  tokens.set(data.tokens);
-  return data;
 }
 
 export async function login(payload: LoginRequest): Promise<AuthResponse> {
@@ -59,6 +50,6 @@ export async function getMe(): Promise<MeResponse> {
   return api.get<MeResponse>("/api/v1/auth/me");
 }
 
-export async function getCurrentTenant(): Promise<Tenant> {
-  return api.get<Tenant>("/api/v1/tenant");
+export async function getCurrentTenant(): Promise<TenantDetail> {
+  return api.get<TenantDetail>("/api/v1/tenant");
 }

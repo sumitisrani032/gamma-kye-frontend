@@ -1,11 +1,26 @@
+export interface TenantSettings {
+  locale: string;
+  currency: string;
+  timezone: string;
+  date_format: string;
+  financial_year_start: string;
+}
+
+/** Slim tenant returned by /auth/me and /auth/login */
 export interface Tenant {
-  id: number;
+  id: string;
   name: string;
   subdomain: string;
   plan: string;
   status: string;
-  created_at: string;
-  updated_at: string;
+}
+
+/** Full tenant returned by GET /tenant and POST /tenant/complete_setup */
+export interface TenantDetail extends Tenant {
+  domain: string | null;
+  settings: TenantSettings;
+  setup_completed: boolean;
+  setup_completed_at: string | null;
 }
 
 export interface Permission {
@@ -31,14 +46,6 @@ export interface AuthTokens {
 export interface LoginRequest {
   email: string;
   password: string;
-}
-
-export interface RegisterUserRequest {
-  email: string;
-  password: string;
-  password_confirmation: string;
-  first_name: string;
-  last_name: string;
 }
 
 export interface RegisterTenantRequest {
@@ -306,4 +313,75 @@ export interface CreateAttachmentRequest {
     file_size: number;
     s3_key: string;
   };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Tenant Setup                                                       */
+/* ------------------------------------------------------------------ */
+
+export interface SetupStep {
+  key: string;
+  label: string;
+  completed: boolean;
+}
+
+export interface SetupStatusResponse {
+  setup_required: boolean;
+  setup_completed_at: string | null;
+  mandatory_steps: SetupStep[];
+  optional_steps: SetupStep[];
+  progress: { completed: number; total: number };
+  can_complete: boolean;
+}
+
+export interface CompleteSetupResponse {
+  message: string;
+  tenant: TenantDetail;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Companies                                                          */
+/* ------------------------------------------------------------------ */
+
+/** Returned by GET /manage/companies (list) */
+export interface CompanySummary {
+  id: string;
+  name: string;
+  legal_name: string;
+  city: string;
+  state: string;
+  country: string;
+  is_primary: boolean;
+  status: string;
+}
+
+/** Returned by GET /manage/companies/:id (detail), POST, PUT */
+export interface CompanyDetail extends CompanySummary {
+  registration_number: string | null;
+  tax_id: string | null;
+  address: string | null;
+  pincode: string | null;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  logo_url: string | null;
+  incorporation_date: string | null;
+  created_at: string;
+}
+
+export interface CompanyFormData {
+  name: string;
+  legal_name: string;
+  registration_number?: string;
+  tax_id?: string;
+  country: string;
+  state: string;
+  city: string;
+  address?: string;
+  pincode?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  incorporation_date?: string;
+  is_primary: boolean;
 }

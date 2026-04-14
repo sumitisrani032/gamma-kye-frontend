@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Button, Input, Alert } from "@/components/ui";
 import { useLogin } from "../hooks/use-login";
 
@@ -52,16 +51,6 @@ export function LoginForm({ workspace }: LoginFormProps) {
           <Button type="submit" className="w-full" loading={loading}>
             Sign In
           </Button>
-
-          <p className="text-center text-sm text-text-secondary">
-            Don&apos;t have an account?{" "}
-            <Link
-              href="/register"
-              className="text-primary-600 hover:text-primary-700 font-medium"
-            >
-              Sign up
-            </Link>
-          </p>
         </form>
       </div>
     </div>
