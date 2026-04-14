@@ -574,9 +574,16 @@ export function EmployeeDetailView({ employeeId }: EmployeeDetailViewProps) {
     employee, loading, error, actionError,
     update, promote, transfer, changeReportingManager, offboard, addRole, deleteRole, setAccountStatus, setPassword,
   } = useEmployeeDetail(employeeId);
-  const { canWithScope } = useAuth();
-  const canManageEmployee = canWithScope("employee", "update", "department");
+  const { user, canWithScope, getScope } = useAuth();
   const [activePanel, setActivePanel] = useState<ActionPanel>(null);
+
+  // Determine if current user can manage THIS employee
+  const isSelf = employee?.user_id === String(user?.id);
+  const scope = getScope("employee", "update");
+  const canManageEmployee = !isSelf && (
+    scope === "global" ||
+    (scope === "department" && !!employee?.department)
+  );
 
   const togglePanel = (panel: ActionPanel) => setActivePanel((prev) => (prev === panel ? null : panel));
 
