@@ -137,7 +137,7 @@ function PendingRequestCard({ request, onCancel }: { request: LeaveRequest; onCa
 /* ─── 2. My Leave Stats (visual charts) ─── */
 
 function LeaveStats({ requests, balances }: { requests: LeaveRequest[]; balances: LeaveBalance[] }) {
-  const approved = requests.filter((r) => r.status === "approved" || r.status === "cancelled");
+  const approved = requests.filter((r) => r.status === "approved");
 
   // Weekly pattern: count leaves by day of week
   const weeklyPattern = useMemo(() => {
@@ -168,17 +168,27 @@ function LeaveStats({ requests, balances }: { requests: LeaveRequest[]; balances
 
   const maxMonthly = Math.max(1, ...monthlyStats);
 
-  // Consumed by type
+  // Consumed by type — compute from approved requests (more accurate than balance.used which may lag)
   const consumedByType = useMemo(() => {
     const map = new Map<string, { name: string; color: string; days: number }>();
+    for (const r of approved) {
+      const days = parseFloat(r.number_of_days) || 0;
+      const existing = map.get(r.leave_type.id);
+      if (existing) {
+        existing.days += days;
+      } else {
+        map.set(r.leave_type.id, { name: r.leave_type.name, color: r.leave_type.color_code || "#6b7280", days });
+      }
+    }
+    // Also check balances for any consumed that may not be in current request list
     for (const b of balances) {
       const used = parseFloat(b.used) || 0;
-      if (used > 0) {
+      if (used > 0 && !map.has(b.leave_type.id)) {
         map.set(b.leave_type.id, { name: b.leave_type.name, color: b.leave_type.color_code || "#6b7280", days: used });
       }
     }
     return Array.from(map.values());
-  }, [balances]);
+  }, [approved, balances]);
 
   const totalConsumed = consumedByType.reduce((sum, c) => sum + c.days, 0);
 
@@ -190,13 +200,16 @@ function LeaveStats({ requests, balances }: { requests: LeaveRequest[]; balances
         <Card>
           <CardContent className="py-4">
             <p className="text-xs font-semibold text-text-primary mb-4">Weekly Pattern</p>
-            <div className="flex items-end gap-2 h-16">
-              {weeklyPattern.map((count, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <div className="w-full rounded-sm bg-primary-500" style={{ height: `${Math.max(2, (count / maxWeekly) * 100)}%` }} />
-                  <span className="text-[10px] text-text-muted">{WEEK_DAYS[i]}</span>
-                </div>
-              ))}
+            <div className="flex items-end gap-2" style={{ height: 64 }}>
+              {weeklyPattern.map((count, i) => {
+                const barH = count > 0 ? Math.max(6, Math.round((count / maxWeekly) * 56)) : 2;
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center justify-end h-full">
+                    <div className={`w-full rounded-sm ${count > 0 ? "bg-primary-500" : "bg-surface-tertiary"}`} style={{ height: barH }} />
+                    <span className="text-[10px] text-text-muted mt-1">{WEEK_DAYS[i]}</span>
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
@@ -250,16 +263,19 @@ function LeaveStats({ requests, balances }: { requests: LeaveRequest[]; balances
         <Card>
           <CardContent className="py-4">
             <p className="text-xs font-semibold text-text-primary mb-4">Monthly Stats</p>
-            <div className="flex items-end gap-1 h-16">
-              {monthlyStats.map((count, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <div
-                    className={`w-full rounded-sm ${count > 0 ? "bg-primary-500" : "bg-surface-tertiary"}`}
-                    style={{ height: count > 0 ? `${Math.max(8, (count / maxMonthly) * 100)}%` : "2px" }}
-                  />
-                  <span className="text-[9px] text-text-muted">{MONTHS_SHORT[i]}</span>
-                </div>
-              ))}
+            <div className="flex items-end gap-1" style={{ height: 64 }}>
+              {monthlyStats.map((count, i) => {
+                const barH = count > 0 ? Math.max(6, Math.round((count / maxMonthly) * 56)) : 2;
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center justify-end h-full">
+                    <div
+                      className={`w-full rounded-sm ${count > 0 ? "bg-primary-500" : "bg-surface-tertiary"}`}
+                      style={{ height: barH }}
+                    />
+                    <span className="text-[9px] text-text-muted mt-1">{MONTHS_SHORT[i]}</span>
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
@@ -270,18 +286,34 @@ function LeaveStats({ requests, balances }: { requests: LeaveRequest[]; balances
 
 /* ─── 3. Leave Balances (detailed cards with ring chart) ─── */
 
-function LeaveBalanceCards({ balances }: { balances: LeaveBalance[] }) {
+function LeaveBalanceCards({ balances, requests }: { balances: LeaveBalance[]; requests: LeaveRequest[] }) {
   if (balances.length === 0) return null;
 
-  const primary = balances.filter((b) => parseFloat(b.entitled) > 0 || parseFloat(b.used) > 0);
-  const other = balances.filter((b) => parseFloat(b.entitled) === 0 && parseFloat(b.used) === 0);
+  // Compute consumed from approved requests (backend balance.used may lag)
+  const consumedMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of requests.filter((r) => r.status === "approved")) {
+      const days = parseFloat(r.number_of_days) || 0;
+      map.set(r.leave_type.id, (map.get(r.leave_type.id) || 0) + days);
+    }
+    return map;
+  }, [requests]);
+
+  const primary = balances.filter((b) => {
+    const entitled = parseFloat(b.entitled) || 0;
+    const balance = parseFloat(b.balance) || 0;
+    const used = parseFloat(b.used) || 0;
+    const computedUsed = consumedMap.get(b.leave_type.id) || 0;
+    return entitled > 0 || balance > 0 || used > 0 || computedUsed > 0;
+  });
+  const other = balances.filter((b) => !primary.includes(b));
 
   return (
     <div className="space-y-3">
       <h2 className="text-base font-semibold text-text-primary">Leave Balances</h2>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {primary.map((b) => (
-          <BalanceCard key={b.id} balance={b} />
+          <BalanceCard key={b.id} balance={b} computedConsumed={consumedMap.get(b.leave_type.id) || 0} />
         ))}
       </div>
       {other.length > 0 && (
@@ -294,19 +326,20 @@ function LeaveBalanceCards({ balances }: { balances: LeaveBalance[] }) {
   );
 }
 
-function BalanceCard({ balance }: { balance: LeaveBalance }) {
+function BalanceCard({ balance, computedConsumed }: { balance: LeaveBalance; computedConsumed: number }) {
   const available = parseFloat(balance.balance) || 0;
-  const consumed = parseFloat(balance.used) || 0;
+  // Use the higher of API used vs computed from requests
+  const consumed = Math.max(parseFloat(balance.used) || 0, computedConsumed);
   const entitled = parseFloat(balance.entitled) || 0;
   const accrued = parseFloat(balance.accrued) || 0;
-  const total = entitled || accrued || 1;
-  const usedPct = Math.min(100, (consumed / total) * 100);
+  const total = Math.max(entitled, accrued, available + consumed, 1);
+  const availPct = Math.min(100, (available / total) * 100);
   const color = balance.leave_type.color_code || "#6b7280";
 
-  // SVG ring chart
+  // SVG ring chart — colored arc = available portion
   const radius = 40;
   const circumference = 2 * Math.PI * radius;
-  const usedStroke = (usedPct / 100) * circumference;
+  const availStroke = (availPct / 100) * circumference;
 
   return (
     <Card>
@@ -316,40 +349,36 @@ function BalanceCard({ balance }: { balance: LeaveBalance }) {
         </div>
       </CardHeader>
       <CardContent>
-        {entitled > 0 || consumed > 0 ? (
-          <div className="flex items-center gap-6 mb-4">
-            {/* Ring chart */}
-            <div className="relative shrink-0">
-              <svg width="100" height="100" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r={radius} fill="none" stroke="#e5e7eb" strokeWidth="8" />
-                <circle
-                  cx="50" cy="50" r={radius} fill="none"
-                  stroke={color} strokeWidth="8" strokeLinecap="round"
-                  strokeDasharray={`${circumference - usedStroke} ${usedStroke}`}
-                  strokeDashoffset={circumference / 4}
-                  transform="rotate(-90 50 50)"
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-lg font-bold text-text-primary">{available}</span>
-                <span className="text-[10px] text-text-muted">Available</span>
-              </div>
-            </div>
-
-            <div className="space-y-1 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-                <span className="text-text-secondary">Available: <strong className="text-text-primary">{available} days</strong></span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-surface-tertiary" />
-                <span className="text-text-secondary">Consumed: <strong className="text-text-primary">{consumed} days</strong></span>
-              </div>
+        <div className="flex items-center gap-6 mb-4">
+          {/* Ring chart */}
+          <div className="relative shrink-0">
+            <svg width="100" height="100" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r={radius} fill="none" stroke="#e5e7eb" strokeWidth="8" />
+              <circle
+                cx="50" cy="50" r={radius} fill="none"
+                stroke={color} strokeWidth="8" strokeLinecap="round"
+                strokeDasharray={`${availStroke} ${circumference - availStroke}`}
+                strokeDashoffset={circumference / 4}
+                transform="rotate(-90 50 50)"
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-lg font-bold" style={{ color }}>{available}</span>
+              <span className="text-[10px] text-text-muted">Available</span>
             </div>
           </div>
-        ) : (
-          <p className="text-xs text-text-muted text-center py-6">No data to display</p>
-        )}
+
+          <div className="space-y-1 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+              <span className="text-text-secondary">Available: <strong className="text-text-primary">{available} days</strong></span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-surface-tertiary" />
+              <span className="text-text-secondary">Consumed: <strong className="text-text-primary">{consumed} days</strong></span>
+            </div>
+          </div>
+        </div>
 
         {/* Bottom stats */}
         <div className="grid grid-cols-2 gap-3 border-t border-border pt-3">
@@ -646,7 +675,7 @@ export function LeavesPage() {
       <LeaveStats requests={requests} balances={balances} />
 
       {/* 3. Leave Balances */}
-      <LeaveBalanceCards balances={balances} />
+      <LeaveBalanceCards balances={balances} requests={requests} />
 
       {/* 4. Leave History */}
       <LeaveHistory requests={requests} onCancel={cancel} />
