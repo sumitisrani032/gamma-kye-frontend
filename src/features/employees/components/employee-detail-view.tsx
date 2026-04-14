@@ -49,22 +49,17 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function EmployeeInfo({ emp }: { emp: EmployeeDetail }) {
+/** Public info — visible to anyone who can view the employee */
+function EmployeePublicInfo({ emp }: { emp: EmployeeDetail }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <Card>
-        <CardHeader><h3 className="text-sm font-semibold text-text-primary">Personal</h3></CardHeader>
+        <CardHeader><h3 className="text-sm font-semibold text-text-primary">Contact</h3></CardHeader>
         <CardContent>
           <dl>
             <InfoRow label="Employee #" value={emp.employee_number} />
             <InfoRow label="Official Email" value={emp.email_official} />
-            <InfoRow label="Personal Email" value={emp.email_personal} />
             <InfoRow label="Phone" value={emp.phone} />
-            <InfoRow label="Gender" value={emp.gender} />
-            <InfoRow label="Date of Birth" value={emp.date_of_birth} />
-            <InfoRow label="Marital Status" value={emp.marital_status} />
-            <InfoRow label="Blood Group" value={emp.blood_group} />
-            <InfoRow label="Nationality" value={emp.nationality} />
           </dl>
         </CardContent>
       </Card>
@@ -74,11 +69,29 @@ function EmployeeInfo({ emp }: { emp: EmployeeDetail }) {
           <dl>
             <InfoRow label="Designation" value={emp.designation?.name} />
             <InfoRow label="Department" value={emp.department?.name} />
-            <InfoRow label="Grade" value={emp.grade?.name} />
             <InfoRow label="Location" value={emp.location?.name} />
-            <InfoRow label="Business Unit" value={emp.business_unit?.name} />
-            <InfoRow label="Manager" value={emp.reporting_manager ? `${emp.reporting_manager.full_name} (${emp.reporting_manager.employee_number})` : null} />
-            <InfoRow label="Direct Reports" value={String(emp.direct_reports_count)} />
+            <InfoRow label="Manager" value={emp.reporting_manager ? emp.reporting_manager.full_name : null} />
+          </dl>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+/** Sensitive info — only visible to self or admins with at least department scope */
+function EmployeePrivateInfo({ emp }: { emp: EmployeeDetail }) {
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <Card>
+        <CardHeader><h3 className="text-sm font-semibold text-text-primary">Personal Details</h3></CardHeader>
+        <CardContent>
+          <dl>
+            <InfoRow label="Personal Email" value={emp.email_personal} />
+            <InfoRow label="Gender" value={emp.gender} />
+            <InfoRow label="Date of Birth" value={emp.date_of_birth} />
+            <InfoRow label="Marital Status" value={emp.marital_status} />
+            <InfoRow label="Blood Group" value={emp.blood_group} />
+            <InfoRow label="Nationality" value={emp.nationality} />
           </dl>
         </CardContent>
       </Card>
@@ -91,6 +104,8 @@ function EmployeeInfo({ emp }: { emp: EmployeeDetail }) {
             <InfoRow label="Date of Joining" value={emp.date_of_joining} />
             <InfoRow label="Confirmation Date" value={emp.date_of_confirmation} />
             <InfoRow label="Notice Period" value={`${emp.notice_period_days} days`} />
+            <InfoRow label="Grade" value={emp.grade?.name} />
+            <InfoRow label="Business Unit" value={emp.business_unit?.name} />
             {emp.date_of_exit && <InfoRow label="Exit Date" value={emp.date_of_exit} />}
             {emp.exit_reason && <InfoRow label="Exit Reason" value={emp.exit_reason} />}
           </dl>
@@ -107,7 +122,6 @@ function EmployeeInfo({ emp }: { emp: EmployeeDetail }) {
             </div>
             <InfoRow label="Roles" value={emp.user_account.roles.map((r) => r.name).join(", ")} />
             <InfoRow label="Last Login" value={emp.user_account.last_login_at ? new Date(emp.user_account.last_login_at).toLocaleDateString() : "Never"} />
-            <InfoRow label="MFA" value={emp.user_account.mfa_enabled ? "Enabled" : "Disabled"} />
           </dl>
         </CardContent>
       </Card>
@@ -577,13 +591,13 @@ export function EmployeeDetailView({ employeeId }: EmployeeDetailViewProps) {
   const { user, canWithScope, getScope } = useAuth();
   const [activePanel, setActivePanel] = useState<ActionPanel>(null);
 
-  // Determine if current user can manage THIS employee
+  // Determine access level for THIS employee
   const isSelf = employee?.user_id === String(user?.id);
   const scope = getScope("employee", "update");
-  const canManageEmployee = !isSelf && (
-    scope === "global" ||
-    (scope === "department" && !!employee?.department)
-  );
+  // Only global-scope (Tenant Admin / HR) can perform admin actions on employees
+  const canManageEmployee = !isSelf && scope === "global";
+  // Private details visible to self or global-scope admins
+  const canViewPrivate = isSelf || scope === "global";
 
   const togglePanel = (panel: ActionPanel) => setActivePanel((prev) => (prev === panel ? null : panel));
 
@@ -718,22 +732,26 @@ export function EmployeeDetailView({ employeeId }: EmployeeDetailViewProps) {
         </Card>
       )}
 
-      {/* Info Cards */}
-      <EmployeeInfo emp={employee} />
+      {/* Public Info — visible to all */}
+      <EmployeePublicInfo emp={employee} />
 
-      {/* Shift Assignment */}
-      <ShiftAssignmentPanel employeeId={employeeId} />
+      {/* Private Info — self or admin only */}
+      {canViewPrivate && <EmployeePrivateInfo emp={employee} />}
 
-      {/* Roles — visible to all, editable by admins */}
-      <Card>
-        <CardHeader><h3 className="text-sm font-semibold text-text-primary">Roles</h3></CardHeader>
-        <CardContent>
-          <RoleManagement emp={employee} onAdd={addRole} onRemove={deleteRole} />
-        </CardContent>
-      </Card>
+      {/* Admin-only sections below */}
+      {canManageEmployee && <ShiftAssignmentPanel employeeId={employeeId} />}
 
-      {/* Account Actions — only for user management permission */}
-      <Can resource="user" action="update">
+      {canManageEmployee && (
+        <Card>
+          <CardHeader><h3 className="text-sm font-semibold text-text-primary">Roles</h3></CardHeader>
+          <CardContent>
+            <RoleManagement emp={employee} onAdd={addRole} onRemove={deleteRole} />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Account Actions — only for global admin */}
+      <Can resource="user" action="update" minScope="global">
         <Card>
           <CardHeader><h3 className="text-sm font-semibold text-text-primary">Account Actions</h3></CardHeader>
           <CardContent className="space-y-3">
