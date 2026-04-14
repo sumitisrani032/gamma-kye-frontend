@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Button, Card, CardContent, CardHeader, Input, Select, Alert } from "@/components/ui";
 import { Can } from "@/components/common/can";
+import { useAuth } from "@/contexts/auth-context";
 import { useEmployeeDetail } from "../hooks/use-employee-detail";
 import { listDesignations } from "@/services/designation-service";
 import { listGrades } from "@/services/grade-service";
@@ -520,7 +521,7 @@ function ShiftAssignmentPanel({ employeeId }: { employeeId: string }) {
       <CardHeader>
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-text-primary">Shift Assignment</h3>
-          <Can resource="employee" action="update">
+          <Can resource="employee" action="update" minScope="department">
             <Button size="sm" variant="ghost" onClick={() => setShowForm(!showForm)}>
               {showForm ? "Cancel" : activeAssignment ? "Change Shift" : "Assign Shift"}
             </Button>
@@ -542,7 +543,7 @@ function ShiftAssignmentPanel({ employeeId }: { employeeId: string }) {
                 {activeAssignment.effective_to && ` until ${new Date(activeAssignment.effective_to).toLocaleDateString([], { day: "2-digit", month: "short", year: "numeric" })}`}
               </p>
             </div>
-            <Can resource="employee" action="update">
+            <Can resource="employee" action="update" minScope="department">
               <Button size="sm" variant="ghost" className="text-danger shrink-0" onClick={() => handleRemove(activeAssignment.id)}>Remove</Button>
             </Can>
           </div>
@@ -573,6 +574,8 @@ export function EmployeeDetailView({ employeeId }: EmployeeDetailViewProps) {
     employee, loading, error, actionError,
     update, promote, transfer, changeReportingManager, offboard, addRole, deleteRole, setAccountStatus, setPassword,
   } = useEmployeeDetail(employeeId);
+  const { canWithScope } = useAuth();
+  const canManageEmployee = canWithScope("employee", "update", "department");
   const [activePanel, setActivePanel] = useState<ActionPanel>(null);
 
   const togglePanel = (panel: ActionPanel) => setActivePanel((prev) => (prev === panel ? null : panel));
@@ -616,22 +619,22 @@ export function EmployeeDetailView({ employeeId }: EmployeeDetailViewProps) {
           </div>
         </div>
 
-        {/* Action buttons — RBAC gated */}
-        <div className="flex items-center gap-2 flex-wrap justify-end shrink-0">
-          <Can resource="employee" action="update">
+        {/* Action buttons — only for department+ scope managers/admins */}
+        {canManageEmployee && (
+          <div className="flex items-center gap-2 flex-wrap justify-end shrink-0">
             <Button size="sm" onClick={() => togglePanel("edit")}>
               {activePanel === "edit" ? "Cancel Edit" : "Edit"}
             </Button>
-          </Can>
-          {employee.employment_status === "active" && (
-            <Can resource="employee" action="update">
-              <Button size="sm" variant="secondary" onClick={() => togglePanel("promote")}>Promote</Button>
-              <Button size="sm" variant="secondary" onClick={() => togglePanel("transfer")}>Transfer</Button>
-              <Button size="sm" variant="secondary" onClick={() => togglePanel("change_manager")}>Change Manager</Button>
-              <Button size="sm" variant="ghost" className="text-danger" onClick={() => togglePanel("offboard")}>Offboard</Button>
-            </Can>
-          )}
-        </div>
+            {employee.employment_status === "active" && (
+              <>
+                <Button size="sm" variant="secondary" onClick={() => togglePanel("promote")}>Promote</Button>
+                <Button size="sm" variant="secondary" onClick={() => togglePanel("transfer")}>Transfer</Button>
+                <Button size="sm" variant="secondary" onClick={() => togglePanel("change_manager")}>Change Manager</Button>
+                <Button size="sm" variant="ghost" className="text-danger" onClick={() => togglePanel("offboard")}>Offboard</Button>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {actionError && <Alert variant="error">{actionError}</Alert>}

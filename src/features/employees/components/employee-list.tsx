@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Button, Alert } from "@/components/ui";
+import { useAuth } from "@/contexts/auth-context";
 import { useEmployees } from "../hooks/use-employees";
 import type { EmployeeListItem } from "@/types";
 
@@ -38,7 +39,9 @@ function EmployeeRow({ emp }: { emp: EmployeeListItem }) {
 }
 
 export function EmployeeList() {
-  const { employees, loading, error, isManageAccess } = useEmployees();
+  const { employees, loading, error } = useEmployees();
+  const { canWithScope } = useAuth();
+  const canManage = canWithScope("employee", "create", "global");
 
   if (loading) {
     return (
@@ -56,7 +59,7 @@ export function EmployeeList() {
         <p className="text-sm text-text-secondary">
           {employees.length} {employees.length === 1 ? "employee" : "employees"}
         </p>
-        {isManageAccess && (
+        {canManage && (
           <Link href="/employees/new">
             <Button>Onboard Employee</Button>
           </Link>
