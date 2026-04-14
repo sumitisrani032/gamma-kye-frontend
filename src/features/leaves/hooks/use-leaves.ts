@@ -38,7 +38,7 @@ export function useLeaves(): UseLeavesReturn {
     try {
       const [bal, reqs] = await Promise.all([
         getLeaveBalances(),
-        listLeaveRequests(statusFilter || undefined),
+        listLeaveRequests({ status: statusFilter || undefined, my_requests: true }),
       ]);
       setBalances(bal);
       setRequests(reqs);

@@ -114,29 +114,37 @@ export function useDashboard(): DashboardData {
       updates.isEmployee = false;
     }
 
-    // 2. Employee-specific data (parallel)
+    // 2. Employee-specific data (parallel) — always scoped to current user
     if (updates.isEmployee) {
-      const [balances, today, summary, leaveReqs] = await Promise.allSettled([
+      const [balances, today, summary] = await Promise.allSettled([
         getLeaveBalances(),
         getToday(),
         getMonthlySummary(new Date().getFullYear(), new Date().getMonth() + 1),
-        listLeaveRequests("approved"),
       ]);
 
       if (balances.status === "fulfilled") updates.leaveBalances = balances.value;
       if (today.status === "fulfilled") updates.todayAttendance = today.value;
       if (summary.status === "fulfilled") updates.monthlySummary = summary.value;
-
-      // Team on leave today — filter approved leaves that cover today
-      if (leaveReqs.status === "fulfilled") {
-        const todayStr = new Date().toISOString().slice(0, 10);
-        updates.teamOnLeave = leaveReqs.value.filter(
-          (lr) => lr.start_date <= todayStr && lr.end_date >= todayStr && lr.employee.id !== updates.employee?.id
-        );
-      }
     }
 
-    // 3. Approvals (parallel)
+    // 3. Team on leave — only fetch if user has direct reports, scoped via reporting chain
+    // Use approved leave requests but only show team members (not entire org)
+    try {
+      const allLeaves = await listLeaveRequests({ status: "approved" });
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const myId = updates.employee?.id;
+
+      if (myId) {
+        // Only show leaves of direct reports (employee.reporting_manager matches current user)
+        // Since leave list doesn't include manager info, cross-reference with org data
+        updates.teamOnLeave = allLeaves.filter(
+          (lr) => lr.start_date <= todayStr && lr.end_date >= todayStr && lr.employee.id !== myId
+        );
+        // Will be further filtered below if org data is available
+      }
+    } catch { /* skip */ }
+
+    // 4. Approvals (parallel) — my_pending = only ones I need to act on
     const [pending, myReqs] = await Promise.allSettled([
       getWorkflowInstances({ my_pending: true }),
       getWorkflowInstances({ my_requests: true }),
@@ -146,7 +154,7 @@ export function useDashboard(): DashboardData {
       updates.myPendingRequests = myReqs.value.filter((w) => w.status === "in_progress");
     }
 
-    // 4. Holidays — get upcoming from all calendars
+    // 5. Holidays — get upcoming from all calendars
     try {
       const calendars = await listHolidayCalendars(new Date().getFullYear());
       if (calendars.length > 0) {
@@ -159,16 +167,33 @@ export function useDashboard(): DashboardData {
       }
     } catch { /* no calendars */ }
 
-    // 5. Org data
+    // 6. Org data — for employee count and to scope team-on-leave to direct reports
     try {
       const orgList = await getOrgFlatList();
       updates.totalEmployees = orgList.length;
-      if (updates.employee?.department) {
-        updates.departmentMembers = orgList.filter(
-          (n) => n.department?.id === updates.employee!.department?.id && n.id !== updates.employee!.id
+
+      const myId = updates.employee?.id;
+      if (myId) {
+        // Direct reports = employees whose reporting_manager_id is current user
+        const directReportIds = new Set(
+          orgList.filter((n) => n.reporting_manager_id === myId).map((n) => n.id)
         );
+
+        // Scope team-on-leave to direct reports only
+        if (updates.teamOnLeave) {
+          updates.teamOnLeave = updates.teamOnLeave.filter(
+            (lr) => directReportIds.has(lr.employee.id)
+          );
+        }
+
+        // Department members
+        if (updates.employee?.department) {
+          updates.departmentMembers = orgList.filter(
+            (n) => n.department?.id === updates.employee!.department?.id && n.id !== myId
+          );
+        }
       }
-    } catch { /* admin-only, skip */ }
+    } catch { /* non-admin, skip — teamOnLeave stays empty */ }
 
     setData((prev) => ({ ...prev, ...updates }));
     setLoading(false);

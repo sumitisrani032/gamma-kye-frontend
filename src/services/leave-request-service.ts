@@ -9,9 +9,22 @@ export async function getLeaveBalances(year?: number): Promise<LeaveBalance[]> {
   return data.leave_balances;
 }
 
-export async function listLeaveRequests(status?: string): Promise<LeaveRequest[]> {
-  const query = status ? `?status=${status}` : "";
-  const data = await api.get<{ leave_requests: LeaveRequest[] }>(`${BASE}${query}`);
+interface LeaveListParams {
+  status?: string;
+  my_requests?: boolean;
+}
+
+export async function listLeaveRequests(params?: LeaveListParams | string): Promise<LeaveRequest[]> {
+  const qs = new URLSearchParams();
+  if (typeof params === "string") {
+    // Backward compat: listLeaveRequests("approved")
+    if (params) qs.set("status", params);
+  } else if (params) {
+    if (params.status) qs.set("status", params.status);
+    if (params.my_requests) qs.set("my_requests", "true");
+  }
+  const query = qs.toString();
+  const data = await api.get<{ leave_requests: LeaveRequest[] }>(`${BASE}${query ? `?${query}` : ""}`);
   return data.leave_requests;
 }
 
