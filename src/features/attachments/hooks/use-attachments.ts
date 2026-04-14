@@ -11,7 +11,7 @@ interface UseAttachmentsReturn {
   attachments: Attachment[];
   uploading: boolean;
   error: string;
-  addAttachment: (file: File, s3Key: string) => Promise<Attachment | null>;
+  addAttachment: (file: File, s3Key: string, entityType: string, entityId: string) => Promise<Attachment | null>;
   removeAttachment: (id: string) => Promise<void>;
   clearError: () => void;
 }
@@ -24,7 +24,7 @@ export function useAttachments(
   const [error, setError] = useState("");
 
   const addAttachment = useCallback(
-    async (file: File, s3Key: string): Promise<Attachment | null> => {
+    async (file: File, s3Key: string, entityType: string, entityId: string): Promise<Attachment | null> => {
       setUploading(true);
       setError("");
       try {
@@ -34,6 +34,8 @@ export function useAttachments(
             file_type: file.type,
             file_size: file.size,
             s3_key: s3Key,
+            entity_type: entityType,
+            entity_id: entityId,
           },
         });
         setAttachments((prev) => [...prev, attachment]);
