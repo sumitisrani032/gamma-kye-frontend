@@ -7,10 +7,10 @@ import {
   rejectWorkflow,
   cancelWorkflow,
 } from "@/services/workflow-service";
-import type { WorkflowInstance, ApiError } from "@/types";
+import type { WorkflowInstanceDetail, ApiError } from "@/types";
 
 interface UseApprovalDetailReturn {
-  instance: WorkflowInstance | null;
+  instance: WorkflowInstanceDetail | null;
   loading: boolean;
   error: string;
   actionLoading: boolean;
@@ -22,7 +22,7 @@ interface UseApprovalDetailReturn {
 }
 
 export function useApprovalDetail(id: string): UseApprovalDetailReturn {
-  const [instance, setInstance] = useState<WorkflowInstance | null>(null);
+  const [instance, setInstance] = useState<WorkflowInstanceDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
@@ -46,7 +46,7 @@ export function useApprovalDetail(id: string): UseApprovalDetailReturn {
   }, [refresh]);
 
   const performAction = useCallback(
-    async (action: () => Promise<WorkflowInstance>) => {
+    async (action: () => Promise<WorkflowInstanceDetail>) => {
       setActionLoading(true);
       setActionError("");
       try {
