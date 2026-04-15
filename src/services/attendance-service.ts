@@ -1,5 +1,5 @@
 import { api } from "./api-client";
-import type { AttendanceRecord, AttendanceSummary } from "@/types";
+import type { AttendanceRecord, AttendanceSummary, TodayAttendanceResponse } from "@/types";
 
 const BASE = "/api/v1/attendance";
 
@@ -13,9 +13,8 @@ export async function clockOut(): Promise<AttendanceRecord> {
   return data.attendance;
 }
 
-export async function getToday(): Promise<AttendanceRecord | null> {
-  const data = await api.get<{ attendance: AttendanceRecord | null }>(`${BASE}/today`);
-  return data.attendance;
+export async function getToday(): Promise<TodayAttendanceResponse> {
+  return api.get<TodayAttendanceResponse>(`${BASE}/today`);
 }
 
 export async function getMonthlyRecords(year: number, month: number): Promise<AttendanceRecord[]> {
@@ -24,8 +23,6 @@ export async function getMonthlyRecords(year: number, month: number): Promise<At
 }
 
 export async function getMonthlySummary(year: number, month: number): Promise<AttendanceSummary> {
-  // Use my_profile endpoint — always scoped to current user
-  // /attendance/monthly_summary returns org-wide data for admin users
   const data = await api.get<{ attendance_summary: AttendanceSummary }>(`/api/v1/my_profile/attendance_summary?year=${year}&month=${month}`);
   return data.attendance_summary;
 }
