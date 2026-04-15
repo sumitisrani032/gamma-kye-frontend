@@ -26,7 +26,8 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
           ref={ref}
           id={selectId}
           className={`
-            block w-full rounded-lg border px-3 py-2 text-sm bg-white
+            block w-full rounded-lg border px-3 py-2 text-sm
+            bg-[var(--theme-input-bg)] text-text-primary
             transition-colors duration-150
             focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500
             ${error ? "border-danger" : "border-border"}

@@ -3,10 +3,11 @@ import { type InputHTMLAttributes, forwardRef } from "react";
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
+  hint?: string;
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, id, className = "", ...props }, ref) => {
+  ({ label, error, hint, id, className = "", ...props }, ref) => {
     const inputId = id || props.name;
 
     return (
@@ -21,6 +22,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           id={inputId}
           className={`
             block w-full rounded-lg border px-3 py-2 text-sm
+            bg-[var(--theme-input-bg)] text-text-primary
             placeholder:text-text-muted transition-colors duration-150
             focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500
             ${error ? "border-danger" : "border-border"}
@@ -28,6 +30,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           `}
           {...props}
         />
+        {hint && !error && <p className="text-xs text-text-muted">{hint}</p>}
         {error && <p className="text-sm text-danger">{error}</p>}
       </div>
     );

@@ -1,6 +1,7 @@
 "use client";
 
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
+import { ThemeToggle } from "@/components/common/theme-toggle";
 
 interface TopBarProps {
   title: string;
@@ -20,6 +21,7 @@ export function TopBar({ title, description, actions }: TopBarProps) {
         </div>
         <div className="flex items-center gap-3">
           {actions}
+          <ThemeToggle />
           <NotificationBell />
         </div>
       </div>
