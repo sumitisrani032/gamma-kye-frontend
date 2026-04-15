@@ -460,6 +460,114 @@ function AttendanceVisual({ record, shift, use24h }: { record: AttendanceRecord;
   );
 }
 
+/* ─── Log Status Icon (action column) ─── */
+
+function LogStatusIcon({ record, shift, regularization, onRegularize, onCancelRequest }: {
+  record: AttendanceRecord;
+  shift: Shift | null;
+  regularization?: RegularizationSummary;
+  onRegularize: () => void;
+  onCancelRequest?: () => void;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const isOff = record.status === "weekly_off" || record.status === "holiday" || record.status === "on_leave";
+  const isAbsent = record.status === "absent";
+  const shiftHours = shift ? parseFloat(shift.full_day_hours) || 8 : 8;
+  const effectiveHours = parseFloat(record.effective_hours || record.total_hours || "0");
+  const hoursCompleted = effectiveHours >= shiftHours;
+
+  // Regularization pending → vintage clock icon
+  if (regularization?.status === "pending") {
+    return (
+      <div className="flex items-center justify-end gap-1.5">
+        <div className="flex items-center gap-1 text-yellow-600" title="Regularization pending">
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+          </svg>
+          <span className="text-[10px] font-medium">Pending</span>
+        </div>
+        {onCancelRequest && (
+          <button type="button" onClick={onCancelRequest} className="text-text-muted hover:text-danger text-xs" title="Cancel request">&times;</button>
+        )}
+      </div>
+    );
+  }
+
+  // Regularized or approved → green check
+  if (record.is_regularized || regularization?.status === "approved") {
+    return (
+      <div className="flex items-center justify-end text-green-600" title="Regularized">
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+        </svg>
+      </div>
+    );
+  }
+
+  // Off days — no action
+  if (isOff) return null;
+
+  // Present + shift hours completed → green check
+  if (!isAbsent && hoursCompleted && record.clock_in && record.clock_out) {
+    return (
+      <div className="flex items-center justify-end text-green-600" title="Shift completed">
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+        </svg>
+      </div>
+    );
+  }
+
+  // Absent or incomplete hours → 3-dot menu
+  const menuItems: { label: string; onClick: () => void }[] = [];
+
+  if (isAbsent) {
+    menuItems.push({ label: "Regularize", onClick: onRegularize });
+    menuItems.push({ label: "Apply Leave", onClick: () => { window.location.href = `/leaves?date=${record.date}`; } });
+    menuItems.push({ label: "Apply WFH", onClick: () => { /* WFH request - future */ } });
+  } else if (!hoursCompleted) {
+    menuItems.push({ label: "Regularize", onClick: onRegularize });
+  }
+
+  if (menuItems.length === 0) return null;
+
+  return (
+    <div className="relative flex items-center justify-end">
+      <button
+        type="button"
+        onClick={() => setMenuOpen((p) => !p)}
+        className="flex items-center justify-center h-7 w-7 rounded-md text-text-muted hover:bg-surface-tertiary hover:text-text-primary transition-colors"
+        title="Actions"
+      >
+        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+          <circle cx="12" cy="5" r="1.5" />
+          <circle cx="12" cy="12" r="1.5" />
+          <circle cx="12" cy="19" r="1.5" />
+        </svg>
+      </button>
+
+      {menuOpen && (
+        <>
+          <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
+          <div className="absolute z-30 right-0 top-full mt-1 rounded-lg border border-border bg-surface shadow-lg py-1 min-w-32">
+            {menuItems.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => { item.onClick(); setMenuOpen(false); }}
+                className="w-full text-left px-3 py-1.5 text-xs text-text-secondary hover:bg-surface-tertiary hover:text-text-primary transition-colors"
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 /* ─── Attendance Log Table ─── */
 
 function AttendanceLog({
@@ -568,27 +676,15 @@ function AttendanceLog({
                     )}
                   </td>
 
-                  {/* Actions */}
+                  {/* Status Icon */}
                   <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      {reg && (reg.status === "pending" || reg.status === "approved") ? (
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${REG_STATUS_STYLES[reg.status]}`}>
-                          Reg: {reg.status}
-                          {reg.status === "pending" && (
-                            <button type="button" onClick={() => onCancelRequest(reg.id)} className="ml-1 text-text-muted hover:text-danger">&times;</button>
-                          )}
-                        </span>
-                      ) : canRegularize ? (
-                        <Button size="sm" variant="ghost" onClick={() => onRegularize(r.id)}>
-                          Regularize
-                        </Button>
-                      ) : null}
-                      {r.is_regularized && (
-                        <span className="inline-flex items-center rounded bg-green-50 px-1.5 py-0.5 text-[10px] font-medium text-green-600">
-                          Regularized
-                        </span>
-                      )}
-                    </div>
+                    <LogStatusIcon
+                      record={r}
+                      shift={shift}
+                      regularization={reg}
+                      onRegularize={() => onRegularize(r.id)}
+                      onCancelRequest={reg ? () => onCancelRequest(reg.id) : undefined}
+                    />
                   </td>
                 </tr>
                 {isFormOpen && (
