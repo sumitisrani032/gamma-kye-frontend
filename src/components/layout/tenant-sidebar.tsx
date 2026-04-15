@@ -64,7 +64,7 @@ const navigation: NavItem[] = [
 export function TenantSidebar() {
   const pathname = usePathname();
   const { open, close } = useSidebar();
-  const { tenant, user, logout, canAccessModule, canWithScope } = useAuth();
+  const { user, logout, canAccessModule, canWithScope } = useAuth();
 
   const canSeeSettings =
     canAccessModule("tenant_settings") ||
@@ -88,12 +88,12 @@ export function TenantSidebar() {
     <>
       {/* Logo */}
       <div className="flex h-14 items-center justify-between px-4 border-b border-border shrink-0">
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600 text-white text-sm font-bold">
-            {(tenant?.name || "G")[0].toUpperCase()}
+        <Link href="/dashboard" className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600 text-white text-sm font-bold shrink-0">
+            G
           </div>
-          <span className="text-sm font-semibold text-text-primary truncate">
-            {tenant?.name || "GammaKYE"}
+          <span className="text-sm font-bold text-primary-600 truncate">
+            GammaKYE
           </span>
         </Link>
         {/* Mobile close button */}
