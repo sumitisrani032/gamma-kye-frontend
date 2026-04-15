@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Button, Card, CardContent, Alert } from "@/components/ui";
+import { useAuth } from "@/contexts/auth-context";
 import { useShifts } from "../hooks/use-shifts";
 import { ShiftForm } from "./shift-form";
 import type { Shift } from "@/types";
@@ -11,6 +12,7 @@ interface ShiftListProps {
 }
 
 export function ShiftList({ onDataChange }: ShiftListProps) {
+  const { can } = useAuth();
   const { shifts, loading, error, add, update, remove, formError, fieldErrors, clearFormErrors } = useShifts();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Shift | null>(null);
@@ -67,7 +69,7 @@ export function ShiftList({ onDataChange }: ShiftListProps) {
         <p className="text-sm text-text-secondary">
           {shifts.length} {shifts.length === 1 ? "shift" : "shifts"} configured
         </p>
-        {!showForm && (
+        {!showForm && can("shift", "create") && (
           <Button size="sm" onClick={openNew}>Add Shift</Button>
         )}
       </div>
@@ -113,10 +115,12 @@ export function ShiftList({ onDataChange }: ShiftListProps) {
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0 ml-4">
-                <Button size="sm" variant="ghost" onClick={() => handleEdit(s)}>
-                  Edit
-                </Button>
-                {!s.is_default && (
+                {can("shift", "update") && (
+                  <Button size="sm" variant="ghost" onClick={() => handleEdit(s)}>
+                    Edit
+                  </Button>
+                )}
+                {!s.is_default && can("shift", "delete") && (
                   <Button size="sm" variant="ghost" className="text-danger" onClick={() => handleDelete(s.id)}>
                     Delete
                   </Button>

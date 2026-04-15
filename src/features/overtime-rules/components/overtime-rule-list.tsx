@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Button, Card, CardContent, Alert } from "@/components/ui";
+import { useAuth } from "@/contexts/auth-context";
 import { useOvertimeRules } from "../hooks/use-overtime-rules";
 import { OvertimeRuleForm } from "./overtime-rule-form";
 import type { OvertimeRule } from "@/types";
@@ -11,6 +12,7 @@ interface OvertimeRuleListProps {
 }
 
 export function OvertimeRuleList({ onDataChange }: OvertimeRuleListProps) {
+  const { can } = useAuth();
   const { rules, loading, error, add, update, formError, fieldErrors, clearFormErrors } = useOvertimeRules();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<OvertimeRule | null>(null);
@@ -53,7 +55,7 @@ export function OvertimeRuleList({ onDataChange }: OvertimeRuleListProps) {
         <p className="text-sm text-text-secondary">
           {rules.length} overtime {rules.length === 1 ? "rule" : "rules"} configured
         </p>
-        {!showForm && <Button size="sm" onClick={openNew}>Add Rule</Button>}
+        {!showForm && can("overtime_rule", "create") && <Button size="sm" onClick={openNew}>Add Rule</Button>}
       </div>
 
       {showForm && (
@@ -91,7 +93,7 @@ export function OvertimeRuleList({ onDataChange }: OvertimeRuleListProps) {
                   {r.applicable_on_holidays && ` · Holidays ${r.holiday_rate_multiplier}x`}
                 </p>
               </div>
-              <Button size="sm" variant="ghost" onClick={() => handleEdit(r)}>Edit</Button>
+              {can("overtime_rule", "update") && <Button size="sm" variant="ghost" onClick={() => handleEdit(r)}>Edit</Button>}
             </div>
           ))}
         </div>
