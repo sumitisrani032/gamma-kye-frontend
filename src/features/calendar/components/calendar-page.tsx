@@ -41,20 +41,30 @@ function formatTime(iso: string | null): string {
 
 /* ─── Day Tooltip ─── */
 
-function DayTooltip({ day, onAction, clocking }: {
-  day: CalendarDay; onAction: (action: CalendarAction) => void; clocking: boolean;
+function DayTooltip({ day, shift, onAction, clocking }: {
+  day: CalendarDay; shift: CalendarShift | null; onAction: (action: CalendarAction) => void; clocking: boolean;
 }) {
+  const hasClock = day.type === "present" || day.type === "regularized" || day.type === "half_day";
+
   return (
-    <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-1 w-48 rounded-lg border border-border bg-surface shadow-lg p-2.5 text-xs">
-      <p className="font-semibold text-text-primary capitalize">{day.type.replace("_", " ")}</p>
+    <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-1 w-56 rounded-lg border border-border bg-surface shadow-lg p-2.5 text-xs">
+      <div className="flex items-center justify-between mb-1">
+        <p className="font-semibold text-text-primary capitalize">{day.type.replace("_", " ")}</p>
+        {day.total_hours != null && <span className="text-primary-600 font-bold">{Number(day.total_hours).toFixed(1)}h</span>}
+      </div>
       {day.label && <p className="text-text-secondary">{day.label}</p>}
-      {(day.type === "present" || day.type === "regularized" || day.type === "half_day") && (
-        <div className="mt-1 space-y-0.5 text-text-muted">
-          <p>In: {formatTime(day.clock_in ?? null)} · Out: {formatTime(day.clock_out ?? null)}</p>
-          {day.total_hours != null && <p>{Number(day.total_hours).toFixed(1)}h</p>}
-          {day.is_late && <p className="text-yellow-600">Late {day.late_minutes}m</p>}
+
+      {/* Timeline bar for work days */}
+      {hasClock && (
+        <div className="mt-2">
+          <TimelineBar shift={shift} clockIn={day.clock_in ?? null} clockOut={day.clock_out ?? null} isLate={day.is_late} lateMinutes={day.late_minutes} />
+          <div className="flex items-center gap-2 mt-1 text-text-muted">
+            <span>In: <strong className="text-green-600">{formatTime(day.clock_in ?? null)}</strong></span>
+            <span>Out: <strong className="text-text-primary">{formatTime(day.clock_out ?? null)}</strong></span>
+          </div>
         </div>
       )}
+
       {day.holiday_type && <p className="mt-1 text-text-muted capitalize">{day.holiday_type}</p>}
       {day.actions.length > 0 && day.type !== "on_leave" && day.type !== "holiday" && day.type !== "weekly_off" && (
         <div className="mt-1.5 flex flex-wrap gap-1">
@@ -70,8 +80,8 @@ function DayTooltip({ day, onAction, clocking }: {
 
 /* ─── Day Cell (compact) ─── */
 
-function DayCell({ day, isToday, onAction, clocking }: {
-  day: CalendarDay; isToday: boolean; onAction: (date: string, action: CalendarAction) => void; clocking: boolean;
+function DayCell({ day, isToday, shift, onAction, clocking }: {
+  day: CalendarDay; isToday: boolean; shift: CalendarShift | null; onAction: (date: string, action: CalendarAction) => void; clocking: boolean;
 }) {
   const [tip, setTip] = useState(false);
   const dateNum = parseInt(day.date.split("-")[2], 10);
@@ -90,7 +100,7 @@ function DayCell({ day, isToday, onAction, clocking }: {
         {dateNum}
         {day.is_late && <span className="absolute top-0.5 right-0.5 h-1 w-1 rounded-full bg-yellow-500" />}
       </button>
-      {tip && <DayTooltip day={day} onAction={(a) => { onAction(day.date, a); setTip(false); }} clocking={clocking} />}
+      {tip && <DayTooltip day={day} shift={shift} onAction={(a) => { onAction(day.date, a); setTip(false); }} clocking={clocking} />}
     </div>
   );
 }
@@ -146,31 +156,145 @@ function UpcomingHolidaysWidget() {
   );
 }
 
+/* ─── Attendance Timeline Bar ─── */
+
+function parseHM(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return h + m / 60;
+}
+
+function isoToHour(iso: string): number {
+  const d = new Date(iso);
+  return d.getHours() + d.getMinutes() / 60;
+}
+
+function TimelineBar({ shift, clockIn, clockOut, isLate, lateMinutes }: {
+  shift: CalendarShift | null; clockIn: string | null; clockOut: string | null; isLate?: boolean; lateMinutes?: number;
+}) {
+  // 24h bar but zoom to relevant range (6 AM – 10 PM = 16h)
+  const rangeStart = 6;
+  const rangeEnd = 22;
+  const rangeHours = rangeEnd - rangeStart;
+  const toPct = (h: number) => Math.max(0, Math.min(100, ((h - rangeStart) / rangeHours) * 100));
+
+  const shiftStart = shift ? parseHM(shift.start_time) : null;
+  const shiftEnd = shift ? parseHM(shift.end_time) : null;
+  const inHour = clockIn ? isoToHour(clockIn) : null;
+  const outHour = clockOut ? isoToHour(clockOut) : (inHour ? new Date().getHours() + new Date().getMinutes() / 60 : null);
+
+  // Hour markers
+  const hours = [6, 8, 10, 12, 14, 16, 18, 20, 22];
+
+  return (
+    <div className="space-y-1">
+      <div className="relative h-6 rounded bg-surface-tertiary overflow-hidden">
+        {/* Shift window */}
+        {shiftStart != null && shiftEnd != null && (
+          <div
+            className="absolute top-0 h-full bg-primary-100 border-x border-primary-300"
+            style={{ left: `${toPct(shiftStart)}%`, width: `${toPct(shiftEnd) - toPct(shiftStart)}%` }}
+          />
+        )}
+
+        {/* Clock in/out fill */}
+        {inHour != null && outHour != null && (
+          <div
+            className="absolute top-1 bottom-1 rounded-sm bg-primary-500"
+            style={{ left: `${toPct(inHour)}%`, width: `${Math.max(0.5, toPct(outHour) - toPct(inHour))}%` }}
+          />
+        )}
+
+        {/* Clock in marker */}
+        {inHour != null && (
+          <div className="absolute top-0 h-full w-0.5 bg-green-600" style={{ left: `${toPct(inHour)}%` }} title={`In: ${clockIn ? formatTime(clockIn) : ""}`} />
+        )}
+
+        {/* Clock out marker */}
+        {clockOut && outHour != null && (
+          <div className="absolute top-0 h-full w-0.5 bg-red-500" style={{ left: `${toPct(outHour)}%` }} title={`Out: ${formatTime(clockOut)}`} />
+        )}
+
+        {/* Shift start/end labels */}
+        {shiftStart != null && (
+          <span className="absolute top-0.5 text-[8px] text-primary-600 font-medium" style={{ left: `${toPct(shiftStart)}%`, transform: "translateX(2px)" }}>
+            {shift?.start_time}
+          </span>
+        )}
+        {shiftEnd != null && (
+          <span className="absolute top-0.5 text-[8px] text-primary-600 font-medium" style={{ left: `${toPct(shiftEnd)}%`, transform: "translateX(-100%)" }}>
+            {shift?.end_time}
+          </span>
+        )}
+      </div>
+
+      {/* Hour ticks */}
+      <div className="relative h-3">
+        {hours.map((h) => (
+          <span key={h} className="absolute text-[8px] text-text-muted -translate-x-1/2" style={{ left: `${toPct(h)}%` }}>
+            {h > 12 ? `${h - 12}P` : h === 12 ? "12P" : `${h}A`}
+          </span>
+        ))}
+      </div>
+
+      {/* Late indicator */}
+      {isLate && lateMinutes && lateMinutes > 0 && (
+        <p className="text-[10px] text-yellow-600 font-medium">{lateMinutes} min late</p>
+      )}
+    </div>
+  );
+}
+
 /* ─── Today Card ─── */
 
 function TodayCard({ day, shift, onAction, clocking }: {
-  day: CalendarDay | undefined; shift: CalendarShift; onAction: (action: CalendarAction) => void; clocking: boolean;
+  day: CalendarDay | undefined; shift: CalendarShift | null; onAction: (action: CalendarAction) => void; clocking: boolean;
 }) {
   if (!day) return null;
-  const isWorkDay = day.type !== "weekly_off" && day.type !== "holiday";
+  const isWorkDay = day.type !== "weekly_off" && day.type !== "holiday" && day.type !== "on_leave";
+  const hasClock = day.type === "present" || day.type === "half_day" || day.type === "regularized" || day.type === "absent";
 
   return (
     <Card>
-      <CardHeader><h3 className="text-xs font-semibold text-text-primary">Today</h3></CardHeader>
-      <CardContent className="space-y-2">
-        <div className="flex items-center gap-2">
-          <span className={`h-2.5 w-2.5 rounded-full ${TYPE_BG[day.type] || "bg-gray-300"}`} />
-          <span className="text-sm font-medium text-text-primary capitalize">{day.type.replace("_", " ")}</span>
-          {day.label && <span className="text-xs text-text-muted">({day.label})</span>}
+      <CardContent className="py-4 px-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${day.type === "present" || day.type === "regularized" ? "bg-green-100" : day.type === "absent" ? "bg-red-100" : "bg-surface-tertiary"}`}>
+              <svg className={`h-3.5 w-3.5 ${day.type === "present" || day.type === "regularized" ? "text-green-600" : day.type === "absent" ? "text-red-600" : "text-text-muted"}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-xs font-semibold text-text-primary">Today</h3>
+              <p className="text-[10px] text-text-muted capitalize">{day.type.replace("_", " ")}{day.label ? ` · ${day.label}` : ""}</p>
+            </div>
+          </div>
+          {day.total_hours != null && (
+            <span className="text-sm font-bold text-primary-600">{Number(day.total_hours).toFixed(1)}h</span>
+          )}
         </div>
-        {isWorkDay && (day.type === "present" || day.type === "half_day" || day.type === "regularized") && (
-          <div className="text-xs text-text-muted space-y-0.5">
-            <p>In: {formatTime(day.clock_in ?? null)} · Out: {formatTime(day.clock_out ?? null)}</p>
-            {day.total_hours != null && <p>Hours: {Number(day.total_hours).toFixed(1)}h</p>}
+
+        {/* Timeline Bar */}
+        {isWorkDay && hasClock && (
+          <TimelineBar
+            shift={shift}
+            clockIn={day.clock_in ?? null}
+            clockOut={day.clock_out ?? null}
+            isLate={day.is_late}
+            lateMinutes={day.late_minutes}
+          />
+        )}
+
+        {/* Clock times */}
+        {hasClock && day.clock_in && (
+          <div className="flex items-center gap-3 text-xs">
+            <span className="text-text-muted">In: <strong className="text-green-600">{formatTime(day.clock_in)}</strong></span>
+            <span className="text-text-muted">Out: <strong className={day.clock_out ? "text-red-500" : "text-text-muted"}>{day.clock_out ? formatTime(day.clock_out) : "—"}</strong></span>
           </div>
         )}
+
         {shift && <p className="text-[10px] text-text-muted">Shift: {shift.name} ({shift.start_time} – {shift.end_time})</p>}
-        {day.actions.length > 0 && (
+
+        {day.actions.length > 0 && day.type !== "on_leave" && day.type !== "holiday" && day.type !== "weekly_off" && (
           <div className="flex gap-1.5 pt-1">
             {day.actions.includes("clock_in") && <Button size="sm" onClick={() => onAction("clock_in")} loading={clocking}>Clock In</Button>}
             {day.actions.includes("clock_out") && <Button size="sm" variant="secondary" onClick={() => onAction("clock_out")} loading={clocking}>Clock Out</Button>}
@@ -391,7 +515,7 @@ export function CalendarPage() {
                     return Array.from({ length: offset }, (_, i) => <div key={`e-${i}`} className="h-9" />);
                   })()}
                   {calendar.days.map((day) => (
-                    <DayCell key={day.date} day={day} isToday={day.date === todayStr} onAction={handleDayAction} clocking={clocking} />
+                    <DayCell key={day.date} day={day} isToday={day.date === todayStr} shift={calendar.shift} onAction={handleDayAction} clocking={clocking} />
                   ))}
                 </div>
               </CardContent>
