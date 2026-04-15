@@ -484,10 +484,11 @@ function AttendanceVisual({ record, shift, use24h }: { record: AttendanceRecord;
 
 /* ─── Log Status Icon (action column) ─── */
 
-function LogStatusIcon({ record, shift, regularization, onRegularize, onCancelRequest, onApplyWfh }: {
+function LogStatusIcon({ record, shift, regularization, wfhForDate, onRegularize, onCancelRequest, onApplyWfh }: {
   record: AttendanceRecord;
   shift: Shift | null;
   regularization?: RegularizationSummary;
+  wfhForDate?: WfhRequest;
   onRegularize: () => void;
   onCancelRequest?: () => void;
   onApplyWfh?: () => void;
@@ -495,12 +496,27 @@ function LogStatusIcon({ record, shift, regularization, onRegularize, onCancelRe
   const [menuOpen, setMenuOpen] = useState(false);
 
   const isOff = record.status === "weekly_off" || record.status === "holiday" || record.status === "on_leave";
-  const isAbsent = record.status === "absent";
+  const isAbsent = record.status === "absent" && !record.clock_in;
   const shiftHours = shift ? parseFloat(shift.full_day_hours) || 8 : 8;
   const effectiveHours = parseFloat(record.effective_hours || record.total_hours || "0");
   const hoursCompleted = effectiveHours >= shiftHours;
+  const isClockedIn = !!record.clock_in;
+  const isFuture = record.date > new Date().toISOString().slice(0, 10);
 
-  // Regularization pending → vintage clock icon
+  // WFH approved/pending for this date → show WFH badge
+  if (wfhForDate && (wfhForDate.status === "approved" || wfhForDate.status === "pending")) {
+    return (
+      <div className="flex items-center justify-end gap-1.5">
+        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+          wfhForDate.status === "approved" ? "bg-teal-100 text-teal-700" : "bg-yellow-100 text-yellow-700"
+        }`}>
+          WFH {wfhForDate.status}
+        </span>
+      </div>
+    );
+  }
+
+  // Regularization pending → clock icon
   if (regularization?.status === "pending") {
     return (
       <div className="flex items-center justify-end gap-1.5">
@@ -511,13 +527,13 @@ function LogStatusIcon({ record, shift, regularization, onRegularize, onCancelRe
           <span className="text-[10px] font-medium">Pending</span>
         </div>
         {onCancelRequest && (
-          <button type="button" onClick={onCancelRequest} className="text-text-muted hover:text-danger text-xs" title="Cancel request">&times;</button>
+          <button type="button" onClick={onCancelRequest} className="text-text-muted hover:text-danger text-xs" title="Cancel">&times;</button>
         )}
       </div>
     );
   }
 
-  // Regularized or approved → green check
+  // Regularized/approved → green check
   if (record.is_regularized || regularization?.status === "approved") {
     return (
       <div className="flex items-center justify-end text-green-600" title="Regularized">
@@ -528,11 +544,11 @@ function LogStatusIcon({ record, shift, regularization, onRegularize, onCancelRe
     );
   }
 
-  // Off days — no action
+  // Off/leave days — no action
   if (isOff) return null;
 
-  // Present + shift hours completed → green check
-  if (!isAbsent && hoursCompleted && record.clock_in && record.clock_out) {
+  // Clocked in/out + shift hours completed → green check
+  if (isClockedIn && hoursCompleted && record.clock_out) {
     return (
       <div className="flex items-center justify-end text-green-600" title="Shift completed">
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -542,45 +558,54 @@ function LogStatusIcon({ record, shift, regularization, onRegularize, onCancelRe
     );
   }
 
-  // Absent or incomplete hours → 3-dot menu
-  const menuItems: { label: string; onClick: () => void }[] = [];
-
-  if (isAbsent) {
-    menuItems.push({ label: "Regularize", onClick: onRegularize });
-    menuItems.push({ label: "Apply Leave", onClick: () => { window.location.href = `/leaves?date=${record.date}`; } });
-    if (onApplyWfh) menuItems.push({ label: "Apply WFH", onClick: onApplyWfh });
-  } else if (!hoursCompleted) {
-    menuItems.push({ label: "Regularize", onClick: onRegularize });
+  // Clocked in but still working (no clock out yet) — in progress, no menu
+  if (isClockedIn && !record.clock_out) {
+    return (
+      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-700">In Progress</span>
+    );
   }
 
-  if (menuItems.length === 0) return null;
+  // Clocked in/out but hours NOT completed → only regularize
+  if (isClockedIn && record.clock_out && !hoursCompleted) {
+    const menuItems = [{ label: "Regularize", onClick: onRegularize }];
+    return <ThreeDotMenu items={menuItems} />;
+  }
+
+  // Absent (past day, no clock in) → full menu
+  if (isAbsent && !isFuture) {
+    const menuItems: { label: string; onClick: () => void }[] = [
+      { label: "Regularize", onClick: onRegularize },
+      { label: "Apply Leave", onClick: () => { window.location.href = `/leaves?date=${record.date}`; } },
+    ];
+    if (onApplyWfh) menuItems.push({ label: "Apply WFH", onClick: onApplyWfh });
+    return <ThreeDotMenu items={menuItems} />;
+  }
+
+  // Future day — no action needed in log
+  return null;
+
+  return null;
+}
+
+function ThreeDotMenu({ items }: { items: { label: string; onClick: () => void }[] }) {
+  const [open, setOpen] = useState(false);
+  if (items.length === 0) return null;
 
   return (
     <div className="relative flex items-center justify-end">
-      <button
-        type="button"
-        onClick={() => setMenuOpen((p) => !p)}
-        className="flex items-center justify-center h-7 w-7 rounded-md text-text-muted hover:bg-surface-tertiary hover:text-text-primary transition-colors"
-        title="Actions"
-      >
+      <button type="button" onClick={() => setOpen((p) => !p)}
+        className="flex items-center justify-center h-7 w-7 rounded-md text-text-muted hover:bg-surface-tertiary hover:text-text-primary transition-colors" title="Actions">
         <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-          <circle cx="12" cy="5" r="1.5" />
-          <circle cx="12" cy="12" r="1.5" />
-          <circle cx="12" cy="19" r="1.5" />
+          <circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="19" r="1.5" />
         </svg>
       </button>
-
-      {menuOpen && (
+      {open && (
         <>
-          <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
+          <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
           <div className="absolute z-30 right-0 top-full mt-1 rounded-lg border border-border bg-surface shadow-lg py-1 min-w-32">
-            {menuItems.map((item) => (
-              <button
-                key={item.label}
-                type="button"
-                onClick={() => { item.onClick(); setMenuOpen(false); }}
-                className="w-full text-left px-3 py-1.5 text-xs text-text-secondary hover:bg-surface-tertiary hover:text-text-primary transition-colors"
-              >
+            {items.map((item) => (
+              <button key={item.label} type="button" onClick={() => { item.onClick(); setOpen(false); }}
+                className="w-full text-left px-3 py-1.5 text-xs text-text-secondary hover:bg-surface-tertiary hover:text-text-primary transition-colors">
                 {item.label}
               </button>
             ))}
@@ -594,11 +619,12 @@ function LogStatusIcon({ record, shift, regularization, onRegularize, onCancelRe
 /* ─── Attendance Log Table ─── */
 
 function AttendanceLog({
-  records, regularizations, use24h, regularizingId, shift,
+  records, regularizations, wfhRequests, use24h, regularizingId, shift,
   onRegularize, onSubmitReg, onCancelReg, onCancelRequest, onApplyWfh,
 }: {
   records: AttendanceRecord[];
   regularizations: RegularizationSummary[];
+  wfhRequests: WfhRequest[];
   use24h: boolean;
   regularizingId: string | null;
   shift: Shift | null;
@@ -610,6 +636,8 @@ function AttendanceLog({
 }) {
   const regByDate = new Map<string, RegularizationSummary>();
   for (const r of regularizations) regByDate.set(r.date, r);
+  const wfhByDate = new Map<string, WfhRequest>();
+  for (const w of wfhRequests) wfhByDate.set(w.date, w);
 
   // Ensure today is always in the list (even if not clocked in)
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -727,6 +755,7 @@ function AttendanceLog({
                       record={r}
                       shift={shift}
                       regularization={reg}
+                      wfhForDate={wfhByDate.get(r.date)}
                       onRegularize={() => onRegularize(r.id)}
                       onCancelRequest={reg ? () => onCancelRequest(reg.id) : undefined}
                       onApplyWfh={onApplyWfh ? () => onApplyWfh(r.date) : undefined}
@@ -1002,6 +1031,7 @@ export function AttendancePage() {
             <AttendanceLog
               records={records}
               regularizations={reg.regularizations}
+              wfhRequests={wfhRequests}
               use24h={use24h}
               regularizingId={regularizingId}
               shift={shift}
