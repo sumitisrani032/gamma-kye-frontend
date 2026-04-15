@@ -5,10 +5,11 @@ import { clockIn, clockOut, getToday, getMonthlyRecords, getMonthlySummary } fro
 import { getMyProfile } from "@/services/my-profile-service";
 import { getEmployeeActiveShift } from "@/services/shift-assignment-service";
 import { listShifts } from "@/services/shift-service";
-import type { AttendanceRecord, AttendanceSummary, Shift, ApiError } from "@/types";
+import type { AttendanceRecord, AttendanceState, AttendanceSummary, Shift, ApiError } from "@/types";
 
 interface UseAttendanceReturn {
   today: AttendanceRecord | null;
+  state: AttendanceState;
   records: AttendanceRecord[];
   summary: AttendanceSummary | null;
   shift: Shift | null;
@@ -21,12 +22,12 @@ interface UseAttendanceReturn {
   setMonth: (m: number) => void;
   handleClockIn: () => Promise<void>;
   handleClockOut: () => Promise<void>;
-  isClockedIn: boolean;
 }
 
 export function useAttendance(): UseAttendanceReturn {
   const now = new Date();
   const [today, setToday] = useState<AttendanceRecord | null>(null);
+  const [state, setState] = useState<AttendanceState>("not_started");
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [summary, setSummary] = useState<AttendanceSummary | null>(null);
   const [shift, setShift] = useState<Shift | null>(null);
@@ -36,12 +37,11 @@ export function useAttendance(): UseAttendanceReturn {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
 
-  const isClockedIn = !!today?.clock_in && !today?.clock_out;
-
   const loadToday = useCallback(async () => {
     try {
       const data = await getToday();
-      setToday(data);
+      setToday(data.attendance);
+      setState(data.state);
     } catch {}
   }, []);
 
@@ -57,22 +57,15 @@ export function useAttendance(): UseAttendanceReturn {
   }, [year, month]);
 
   const loadShift = useCallback(async () => {
-    // 1. Try employee's active shift assignment
     try {
       const profile = await getMyProfile();
       const assignment = await getEmployeeActiveShift(profile.employee.id);
-      if (assignment) {
-        setShift(assignment.shift);
-        return;
-      }
-    } catch { /* not authorized or no assignment */ }
-
-    // 2. Fallback: default shift from /manage/shifts
+      if (assignment) { setShift(assignment.shift); return; }
+    } catch {}
     try {
       const shifts = await listShifts();
-      const defaultShift = shifts.find((s) => s.is_default && s.is_active) || shifts[0] || null;
-      setShift(defaultShift);
-    } catch { /* non-admin, skip */ }
+      setShift(shifts.find((s) => s.is_default && s.is_active) || shifts[0] || null);
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -83,35 +76,33 @@ export function useAttendance(): UseAttendanceReturn {
     setError("");
     setClocking(true);
     try {
-      const data = await clockIn("web");
-      setToday(data);
+      await clockIn("web");
+      await loadToday();
       await loadMonthly();
     } catch (err) {
-      const apiError = err as ApiError;
-      setError(apiError.error || "Failed to clock in.");
+      setError((err as ApiError).error || "Failed to clock in.");
     } finally {
       setClocking(false);
     }
-  }, [loadMonthly]);
+  }, [loadToday, loadMonthly]);
 
   const handleClockOut = useCallback(async () => {
     setError("");
     setClocking(true);
     try {
-      const data = await clockOut();
-      setToday(data);
+      await clockOut();
+      await loadToday();
       await loadMonthly();
     } catch (err) {
-      const apiError = err as ApiError;
-      setError(apiError.error || "Failed to clock out.");
+      setError((err as ApiError).error || "Failed to clock out.");
     } finally {
       setClocking(false);
     }
-  }, [loadMonthly]);
+  }, [loadToday, loadMonthly]);
 
   return {
-    today, records, summary, shift, loading, clocking, error,
+    today, state, records, summary, shift, loading, clocking, error,
     year, month, setYear, setMonth,
-    handleClockIn, handleClockOut, isClockedIn,
+    handleClockIn, handleClockOut,
   };
 }
