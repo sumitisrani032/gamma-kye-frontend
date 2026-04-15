@@ -24,6 +24,8 @@ export async function getMonthlyRecords(year: number, month: number): Promise<At
 }
 
 export async function getMonthlySummary(year: number, month: number): Promise<AttendanceSummary> {
-  const data = await api.get<{ attendance_summary: AttendanceSummary }>(`${BASE}/monthly_summary?year=${year}&month=${month}`);
+  // Use my_profile endpoint — always scoped to current user
+  // /attendance/monthly_summary returns org-wide data for admin users
+  const data = await api.get<{ attendance_summary: AttendanceSummary }>(`/api/v1/my_profile/attendance_summary?year=${year}&month=${month}`);
   return data.attendance_summary;
 }
