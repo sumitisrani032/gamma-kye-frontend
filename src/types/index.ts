@@ -986,6 +986,18 @@ export interface MyProfileResponse {
 
 export type AttendanceStatus = "present" | "absent" | "half_day" | "on_leave" | "holiday" | "weekly_off";
 
+export type AttendanceState = "not_started" | "working" | "on_break";
+
+export interface AttendanceSession {
+  id: string;
+  session_number: number;
+  clock_in: string;
+  clock_out: string | null;
+  hours: number | null;
+  source: string;
+  open: boolean;
+}
+
 export interface AttendanceRecord {
   id: string;
   date: string;
@@ -1001,6 +1013,13 @@ export interface AttendanceRecord {
   overtime_minutes: number;
   is_regularized: boolean;
   remarks: string | null;
+  sessions_count?: number;
+  sessions?: AttendanceSession[];
+}
+
+export interface TodayAttendanceResponse {
+  state: AttendanceState;
+  attendance: AttendanceRecord | null;
 }
 
 /* ------------------------------------------------------------------ */
