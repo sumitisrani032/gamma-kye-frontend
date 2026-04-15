@@ -338,7 +338,9 @@ function parseHM(time: string): number {
   return h + m / 60;
 }
 
-function AttendanceVisual({ record, shift }: { record: AttendanceRecord; shift: Shift | null }) {
+function AttendanceVisual({ record, shift, use24h }: { record: AttendanceRecord; shift: Shift | null; use24h: boolean }) {
+  const [hover, setHover] = useState(false);
+
   if (record.status === "weekly_off" || record.status === "holiday" || record.status === "on_leave") {
     return <div className="h-5 w-full rounded bg-surface-tertiary" />;
   }
@@ -357,39 +359,36 @@ function AttendanceVisual({ record, shift }: { record: AttendanceRecord; shift: 
   const shiftStart = shift ? parseHM(shift.start_time) : null;
   const shiftEnd = shift ? parseHM(shift.end_time) : null;
 
-  // Tick marks every 4 hours
   const ticks = [0, 4, 8, 12, 16, 20, 24];
 
   return (
-    <div className="space-y-0.5">
-      <div className="relative h-5 w-full rounded bg-surface-tertiary overflow-hidden">
-        {/* Tick marks */}
+    <div className="relative" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+      <div className="relative h-5 w-full rounded bg-surface-tertiary overflow-hidden cursor-pointer">
         {ticks.map((h) => (
           <div key={h} className="absolute top-0 h-full w-px bg-border" style={{ left: `${toPct(h)}%` }} />
         ))}
-
-        {/* Shift window */}
         {shiftStart != null && shiftEnd != null && (
-          <div
-            className="absolute top-0 h-full bg-primary-100 border-x border-primary-200"
-            style={{ left: `${toPct(shiftStart)}%`, width: `${toPct(shiftEnd) - toPct(shiftStart)}%` }}
-          />
+          <div className="absolute top-0 h-full bg-primary-100 border-x border-primary-200" style={{ left: `${toPct(shiftStart)}%`, width: `${toPct(shiftEnd) - toPct(shiftStart)}%` }} />
         )}
-
-        {/* Actual work bar */}
-        <div
-          className="absolute top-1 bottom-1 rounded-sm bg-primary-500"
-          style={{ left: `${toPct(inHour)}%`, width: `${Math.max(0.4, toPct(outHour) - toPct(inHour))}%` }}
-        />
-
-        {/* Clock in marker */}
+        <div className="absolute top-1 bottom-1 rounded-sm bg-primary-500" style={{ left: `${toPct(inHour)}%`, width: `${Math.max(0.4, toPct(outHour) - toPct(inHour))}%` }} />
         <div className="absolute top-0 h-full w-0.5 bg-green-600" style={{ left: `${toPct(inHour)}%` }} />
-
-        {/* Clock out marker */}
         {record.clock_out && (
           <div className="absolute top-0 h-full w-0.5 bg-red-500" style={{ left: `${toPct(outHour)}%` }} />
         )}
       </div>
+
+      {/* Hover tooltip */}
+      {hover && (
+        <div className="absolute z-30 bottom-full left-1/2 -translate-x-1/2 mb-1 rounded-lg border border-border bg-surface shadow-lg px-3 py-2 text-xs whitespace-nowrap">
+          <div className="flex items-center gap-3">
+            <span><span className="inline-block h-1.5 w-1.5 rounded-full bg-green-600 mr-1" />In: <strong>{formatTime(record.clock_in, use24h)}</strong></span>
+            <span><span className="inline-block h-1.5 w-1.5 rounded-full bg-red-500 mr-1" />Out: <strong>{record.clock_out ? formatTime(record.clock_out, use24h) : "—"}</strong></span>
+            {record.total_hours && <span>Duration: <strong>{formatHours(record.total_hours)}</strong></span>}
+          </div>
+          {shift && <p className="text-text-muted mt-0.5">Shift: {shift.start_time} – {shift.end_time}</p>}
+          {record.is_late && <p className="text-yellow-600 mt-0.5">{record.late_minutes}m late</p>}
+        </div>
+      )}
     </div>
   );
 }
@@ -464,7 +463,7 @@ function AttendanceLog({
                         {isOff ? `Full day ${r.status === "weekly_off" ? "Weekly-off" : "Holiday"}` : "On Leave"}
                       </span>
                     ) : (
-                      <AttendanceVisual record={r} shift={shift} />
+                      <AttendanceVisual record={r} shift={shift} use24h={use24h} />
                     )}
                   </td>
 
