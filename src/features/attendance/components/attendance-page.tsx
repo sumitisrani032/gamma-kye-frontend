@@ -364,8 +364,8 @@ function AttendanceVisual({ record, shift, use24h }: { record: AttendanceRecord;
   for (let h = rangeStart; h <= rangeEnd; h++) ticks.push(h);
 
   return (
-    <div className="relative" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
-      <div className="relative h-2.5 w-full cursor-pointer">
+    <div className="relative max-w-64" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+      <div className="relative h-2 w-full cursor-pointer">
         {/* Grey track with tick marks */}
         {ticks.map((h) => (
           <div key={h} className="absolute top-0 h-full w-px bg-border" style={{ left: `${toPct(h)}%` }} />
