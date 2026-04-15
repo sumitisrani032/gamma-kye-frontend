@@ -42,7 +42,7 @@ function DayTooltip({ day, onAction, clocking }: {
       {(day.type === "present" || day.type === "regularized" || day.type === "half_day") && (
         <div className="mt-2 space-y-1 text-text-muted">
           <p>In: {formatTime(day.clock_in ?? null)} · Out: {formatTime(day.clock_out ?? null)}</p>
-          {day.total_hours != null && <p>Hours: {day.total_hours.toFixed(1)}h</p>}
+          {day.total_hours != null && <p>Hours: {Number(day.total_hours).toFixed(1)}h</p>}
           {day.is_late && <p className="text-yellow-600">Late by {day.late_minutes}m</p>}
         </div>
       )}
