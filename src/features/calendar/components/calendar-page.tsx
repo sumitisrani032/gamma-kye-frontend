@@ -169,7 +169,7 @@ function TodayCard({ day, shift, onAction, clocking }: {
             {day.total_hours != null && <p>Hours: {Number(day.total_hours).toFixed(1)}h</p>}
           </div>
         )}
-        <p className="text-[10px] text-text-muted">Shift: {shift.name} ({shift.start_time} – {shift.end_time})</p>
+        {shift && <p className="text-[10px] text-text-muted">Shift: {shift.name} ({shift.start_time} – {shift.end_time})</p>}
         {day.actions.length > 0 && (
           <div className="flex gap-1.5 pt-1">
             {day.actions.includes("clock_in") && <Button size="sm" onClick={() => onAction("clock_in")} loading={clocking}>Clock In</Button>}
@@ -401,9 +401,11 @@ export function CalendarPage() {
             <Legend />
 
             {/* Shift info */}
-            <p className="text-[10px] text-text-muted">
-              Shift: {calendar.shift.name} ({calendar.shift.start_time} – {calendar.shift.end_time}) · Weekly off: {calendar.shift.weekly_offs.join(", ")}
-            </p>
+            {calendar.shift && (
+              <p className="text-[10px] text-text-muted">
+                Shift: {calendar.shift.name} ({calendar.shift.start_time} – {calendar.shift.end_time}) · Weekly off: {calendar.shift.weekly_offs.join(", ")}
+              </p>
+            )}
           </div>
 
           {/* Right: Sidebar widgets */}
