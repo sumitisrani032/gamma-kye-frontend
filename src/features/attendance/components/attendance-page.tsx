@@ -611,6 +611,27 @@ function AttendanceLog({
   const regByDate = new Map<string, RegularizationSummary>();
   for (const r of regularizations) regByDate.set(r.date, r);
 
+  // Ensure today is always in the list (even if not clocked in)
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const isCurrentMonth = now.getFullYear() === new Date(records[0]?.date || todayStr).getFullYear()
+    && now.getMonth() === new Date(records[0]?.date || todayStr).getMonth();
+  const hasToday = records.some((r) => r.date === todayStr);
+
+  const displayRecords = (!hasToday && isCurrentMonth) ? [
+    {
+      id: `today-placeholder-${todayStr}`,
+      date: todayStr,
+      status: "absent" as const,
+      clock_in: null, clock_out: null,
+      total_hours: null, effective_hours: null,
+      source: "", is_late: false, late_minutes: 0,
+      is_early_departure: false, overtime_minutes: 0,
+      is_regularized: false, remarks: null,
+    } as AttendanceRecord,
+    ...records,
+  ] : records;
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -624,7 +645,7 @@ function AttendanceLog({
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {records.map((r) => {
+          {displayRecords.map((r) => {
             const date = new Date(r.date);
             const dayName = date.toLocaleDateString([], { weekday: "short" });
             const dateStr = date.toLocaleDateString([], { day: "2-digit", month: "short" });
