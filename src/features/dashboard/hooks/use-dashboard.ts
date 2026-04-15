@@ -123,7 +123,7 @@ export function useDashboard(): DashboardData {
       ]);
 
       if (balances.status === "fulfilled") updates.leaveBalances = balances.value;
-      if (today.status === "fulfilled") updates.todayAttendance = today.value;
+      if (today.status === "fulfilled") updates.todayAttendance = today.value.attendance;
       if (summary.status === "fulfilled") updates.monthlySummary = summary.value;
     }
 

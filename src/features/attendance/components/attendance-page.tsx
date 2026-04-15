@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { Button, Card, CardContent, CardHeader, Input, Alert } from "@/components/ui";
 import { useAttendance } from "../hooks/use-attendance";
 import { useRegularizations } from "../hooks/use-regularizations";
-import type { AttendanceRecord, AttendanceSummary, RegularizationSummary, Shift } from "@/types";
+import type { AttendanceRecord, AttendanceState, AttendanceSummary, RegularizationSummary, Shift } from "@/types";
 
 /* ─── Constants ─── */
 
@@ -224,17 +224,16 @@ function TimingsCard({ today, shift, use24h }: { today: AttendanceRecord | null;
             </div>
             <div className="flex justify-between mt-1">
               <span className="text-[10px] text-text-muted">
-                Duration: {formatHours(today.total_hours)}
+                Effective: {formatHours(today.effective_hours || today.total_hours)}
+                {today.effective_hours && today.total_hours && today.effective_hours !== today.total_hours && (
+                  <span className="text-text-muted ml-1">(Gross: {formatHours(today.total_hours)})</span>
+                )}
               </span>
-              {shift && (
-                <span className="text-[10px] text-text-muted">
-                  Grace: {shift.grace_minutes}m
-                </span>
+              {today.sessions_count && today.sessions_count > 1 && (
+                <span className="text-[10px] text-primary-600">{today.sessions_count} sessions</span>
               )}
               {today.overtime_minutes > 0 && (
-                <span className="text-[10px] text-green-600">
-                  +{today.overtime_minutes}m OT
-                </span>
+                <span className="text-[10px] text-green-600">+{today.overtime_minutes}m OT</span>
               )}
             </div>
           </div>
@@ -246,21 +245,19 @@ function TimingsCard({ today, shift, use24h }: { today: AttendanceRecord | null;
   );
 }
 
-/* ─── Actions Card ─── */
+/* ─── Actions Card (state-based) ─── */
 
 function ActionsCard({
-  today, isClockedIn, clocking, use24h, onClockIn, onClockOut, onToggle24h,
+  state, today, clocking, use24h, onClockIn, onClockOut, onToggle24h,
 }: {
+  state: AttendanceState;
   today: AttendanceRecord | null;
-  isClockedIn: boolean;
   clocking: boolean;
   use24h: boolean;
   onClockIn: () => void;
   onClockOut: () => void;
   onToggle24h: () => void;
 }) {
-  const dayComplete = !!today?.clock_in && !!today?.clock_out;
-
   return (
     <Card>
       <CardHeader>
@@ -270,16 +267,40 @@ function ActionsCard({
         <LiveClock use24h={use24h} />
 
         <div className="flex flex-col gap-2">
-          {!today || !today.clock_in ? (
+          {state === "not_started" && (
             <Button onClick={onClockIn} loading={clocking} className="w-full">Clock In</Button>
-          ) : isClockedIn ? (
+          )}
+          {state === "working" && (
             <Button onClick={onClockOut} loading={clocking} variant="secondary" className="w-full">Clock Out</Button>
-          ) : (
-            <span className="inline-flex items-center justify-center rounded-lg bg-green-100 px-4 py-2 text-sm font-medium text-green-700">
-              Day Complete
-            </span>
+          )}
+          {state === "on_break" && (
+            <>
+              <Button onClick={onClockIn} loading={clocking} className="w-full">Resume Work</Button>
+              <p className="text-xs text-text-muted text-center">On break · {today?.sessions_count || 0} session{(today?.sessions_count || 0) !== 1 ? "s" : ""} today</p>
+            </>
           )}
         </div>
+
+        {/* Session info */}
+        {today && today.sessions && today.sessions.length > 0 && (
+          <div className="border-t border-border pt-3 space-y-1.5">
+            <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">Sessions</p>
+            {today.sessions.map((s) => (
+              <div key={s.id} className="flex items-center justify-between text-xs">
+                <span className="text-text-secondary">
+                  S{s.session_number}: {formatTime(s.clock_in, use24h)} – {s.clock_out ? formatTime(s.clock_out, use24h) : <span className="text-green-600">Active</span>}
+                </span>
+                {s.hours != null && <span className="text-text-muted">{Number(s.hours).toFixed(1)}h</span>}
+              </div>
+            ))}
+            {today.effective_hours && (
+              <div className="flex items-center justify-between text-xs pt-1 border-t border-border">
+                <span className="text-text-secondary font-medium">Effective</span>
+                <span className="font-bold text-primary-600">{Number(today.effective_hours).toFixed(1)}h</span>
+              </div>
+            )}
+          </div>
+        )}
 
         <label className="flex items-center justify-between text-xs text-text-secondary cursor-pointer">
           <span>24 hour format</span>
@@ -387,21 +408,50 @@ function AttendanceVisual({ record, shift, use24h }: { record: AttendanceRecord;
           <div className="absolute -bottom-1 w-0 h-0 border-l-[2.5px] border-r-[2.5px] border-b-[3px] border-transparent border-b-text-muted" style={{ left: `${toPct(shiftEndH)}%`, transform: "translateX(-2.5px)" }} />
         )}
 
-        {/* Filled work bar — the actual clock in/out range */}
-        <div
-          className="absolute top-0 h-full rounded-full bg-primary-500"
-          style={{ left: `${toPct(inHour)}%`, width: `${Math.max(0.8, toPct(outHour) - toPct(inHour))}%` }}
-        />
+        {/* Filled work bars — one per session, or single bar if no sessions */}
+        {record.sessions && record.sessions.length > 0 ? (
+          record.sessions.map((s) => {
+            const sIn = new Date(s.clock_in).getHours() + new Date(s.clock_in).getMinutes() / 60;
+            const sOut = s.clock_out
+              ? new Date(s.clock_out).getHours() + new Date(s.clock_out).getMinutes() / 60
+              : new Date().getHours() + new Date().getMinutes() / 60;
+            return (
+              <div key={s.id} className="absolute top-0 h-full rounded-full bg-primary-500" style={{ left: `${toPct(sIn)}%`, width: `${Math.max(0.8, toPct(sOut) - toPct(sIn))}%` }} />
+            );
+          })
+        ) : (
+          <div className="absolute top-0 h-full rounded-full bg-primary-500" style={{ left: `${toPct(inHour)}%`, width: `${Math.max(0.8, toPct(outHour) - toPct(inHour))}%` }} />
+        )}
       </div>
 
       {/* Hover tooltip */}
       {hover && (
         <div className="absolute z-30 bottom-full left-1/2 -translate-x-1/2 mb-2 rounded-lg border border-border bg-surface shadow-lg px-3 py-2 text-xs whitespace-nowrap">
-          <div className="flex items-center gap-3">
-            <span>In: <strong className="text-green-600">{formatTime(record.clock_in, use24h)}</strong></span>
-            <span>Out: <strong className={record.clock_out ? "text-red-500" : "text-text-muted"}>{record.clock_out ? formatTime(record.clock_out, use24h) : "In Progress"}</strong></span>
-            {record.total_hours && <span>Duration: <strong>{formatHours(record.total_hours)}</strong></span>}
-          </div>
+          {record.sessions && record.sessions.length > 1 ? (
+            <div className="space-y-1">
+              {record.sessions.map((s) => (
+                <div key={s.id} className="flex items-center gap-2">
+                  <span className="text-text-muted">S{s.session_number}:</span>
+                  <span className="text-green-600">{formatTime(s.clock_in, use24h)}</span>
+                  <span className="text-text-muted">–</span>
+                  <span className={s.clock_out ? "text-red-500" : "text-text-muted"}>{s.clock_out ? formatTime(s.clock_out, use24h) : "Active"}</span>
+                  {s.hours != null && <span className="text-text-muted">({Number(s.hours).toFixed(1)}h)</span>}
+                </div>
+              ))}
+              <div className="flex items-center gap-2 pt-1 border-t border-border">
+                <span className="text-text-secondary font-medium">Effective: <strong className="text-primary-600">{formatHours(record.effective_hours || record.total_hours)}</strong></span>
+                {record.total_hours && record.effective_hours && record.total_hours !== record.effective_hours && (
+                  <span className="text-text-muted">Gross: {formatHours(record.total_hours)}</span>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <span>In: <strong className="text-green-600">{formatTime(record.clock_in, use24h)}</strong></span>
+              <span>Out: <strong className={record.clock_out ? "text-red-500" : "text-text-muted"}>{record.clock_out ? formatTime(record.clock_out, use24h) : "In Progress"}</strong></span>
+              {record.effective_hours && <span>Duration: <strong>{formatHours(record.effective_hours)}</strong></span>}
+            </div>
+          )}
           {shift && <p className="text-text-muted mt-0.5">Shift: {shift.start_time} – {shift.end_time}</p>}
           {record.is_late && <p className="text-yellow-600 mt-0.5">{record.late_minutes}m late</p>}
         </div>
@@ -640,9 +690,9 @@ import React from "react";
 
 export function AttendancePage() {
   const {
-    today, records, summary, shift, loading, clocking, error,
+    today, state, records, summary, shift, loading, clocking, error,
     year, month, setYear, setMonth,
-    handleClockIn, handleClockOut, isClockedIn,
+    handleClockIn, handleClockOut,
   } = useAttendance();
   const reg = useRegularizations();
   const [regularizingId, setRegularizingId] = useState<string | null>(null);
@@ -678,8 +728,8 @@ export function AttendancePage() {
         <StatsCard records={records} summary={summary} />
         <TimingsCard today={today} shift={shift} use24h={use24h} />
         <ActionsCard
+          state={state}
           today={today}
-          isClockedIn={isClockedIn}
           clocking={clocking}
           use24h={use24h}
           onClockIn={handleClockIn}
