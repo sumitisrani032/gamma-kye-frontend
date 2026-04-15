@@ -220,42 +220,107 @@ function HolidayList({ holidays, year, onPrevYear, onNextYear }: {
     if (!grouped[m]) grouped[m] = [];
     grouped[m].push(h);
   }
+
+  const mandatory = holidays.filter((h) => h.holiday_type === "mandatory").length;
+  const optional = holidays.filter((h) => h.holiday_type === "optional").length;
+
+  // Next upcoming holiday
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const upcoming = holidays.filter((h) => h.date >= todayStr).sort((a, b) => a.date.localeCompare(b.date));
+  const next = upcoming[0];
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-text-primary">Holidays {year}</h2>
-        <div className="flex items-center gap-2">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      {/* Left: Holiday list */}
+      <div className="lg:col-span-2 space-y-3">
+        <div className="flex items-center justify-between">
           <Button size="sm" variant="ghost" onClick={onPrevYear}>&larr; {year - 1}</Button>
+          <h2 className="text-sm font-semibold text-text-primary">Holidays {year}</h2>
           <Button size="sm" variant="ghost" onClick={onNextYear}>{year + 1} &rarr;</Button>
         </div>
-      </div>
-      {holidays.length === 0 ? (
-        <p className="text-sm text-text-muted text-center py-8">No holidays for {year}.</p>
-      ) : (
-        Object.entries(grouped).sort(([a], [b]) => Number(a) - Number(b)).map(([mIdx, hols]) => (
-          <Card key={mIdx}>
-            <CardHeader><h3 className="text-sm font-semibold text-text-primary">{MONTHS[Number(mIdx)]}</h3></CardHeader>
+        {holidays.length === 0 ? (
+          <p className="text-sm text-text-muted text-center py-8">No holidays for {year}.</p>
+        ) : (
+          <Card>
             <div className="divide-y divide-border">
-              {hols.map((h) => {
-                const d = new Date(h.date + "T00:00:00");
-                return (
-                  <div key={h.id} className="flex items-center justify-between px-4 py-2">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-text-primary w-20">
-                        {d.toLocaleDateString([], { day: "2-digit", month: "short" })} {d.toLocaleDateString([], { weekday: "short" })}
-                      </span>
-                      <span className="text-sm text-text-secondary">{h.name}</span>
-                    </div>
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${
-                      h.holiday_type === "mandatory" ? "bg-yellow-100 text-yellow-700" : "bg-surface-tertiary text-text-muted"
-                    }`}>{h.holiday_type}{h.is_half_day ? " · Half" : ""}</span>
+              {Object.entries(grouped).sort(([a], [b]) => Number(a) - Number(b)).map(([mIdx, hols]) => (
+                <div key={mIdx}>
+                  <div className="px-4 py-2 bg-surface-secondary">
+                    <p className="text-xs font-semibold text-text-muted">{MONTHS[Number(mIdx)]}</p>
                   </div>
-                );
-              })}
+                  {hols.map((h) => {
+                    const d = new Date(h.date + "T00:00:00");
+                    const isPast = h.date < todayStr;
+                    return (
+                      <div key={h.id} className={`flex items-center justify-between px-4 py-2 ${isPast ? "opacity-50" : ""}`}>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-medium text-text-primary w-16">
+                            {d.toLocaleDateString([], { day: "2-digit", month: "short" })}
+                          </span>
+                          <span className="text-xs text-text-muted w-8">{d.toLocaleDateString([], { weekday: "short" })}</span>
+                          <span className="text-xs text-text-secondary">{h.name}</span>
+                        </div>
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${
+                          h.holiday_type === "mandatory" ? "bg-yellow-100 text-yellow-700" : "bg-surface-tertiary text-text-muted"
+                        }`}>{h.holiday_type}{h.is_half_day ? " · Half" : ""}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </Card>
-        ))
-      )}
+        )}
+      </div>
+
+      {/* Right: Stats */}
+      <div className="space-y-4">
+        {/* Holiday summary */}
+        <Card>
+          <CardHeader><h3 className="text-xs font-semibold text-text-primary">Summary</h3></CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <p className="text-2xl font-bold text-text-primary">{holidays.length}</p>
+                <p className="text-[10px] text-text-muted">Total</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-yellow-600">{mandatory}</p>
+                <p className="text-[10px] text-text-muted">Mandatory</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-text-muted">{optional}</p>
+                <p className="text-[10px] text-text-muted">Optional</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Next holiday */}
+        {next && (
+          <Card>
+            <CardHeader><h3 className="text-xs font-semibold text-text-primary">Next Holiday</h3></CardHeader>
+            <CardContent className="text-center space-y-1">
+              <p className="text-lg font-bold text-text-primary">{next.name}</p>
+              <p className="text-sm text-text-secondary">
+                {new Date(next.date + "T00:00:00").toLocaleDateString([], { weekday: "long", day: "2-digit", month: "long" })}
+              </p>
+              <p className="text-xs text-primary-600 font-medium">
+                {Math.ceil((new Date(next.date).getTime() - Date.now()) / 86400000)} days away
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Remaining this year */}
+        <Card>
+          <CardHeader><h3 className="text-xs font-semibold text-text-primary">Remaining This Year</h3></CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-text-primary text-center">{upcoming.length}</p>
+            <p className="text-[10px] text-text-muted text-center">holidays left</p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
