@@ -1102,3 +1102,115 @@ export interface MyTeamData {
   peers: OrgNode[];
   directReports: OrgNode[];
 }
+
+/* ------------------------------------------------------------------ */
+/*  Document Requirements & Employee Documents                         */
+/* ------------------------------------------------------------------ */
+
+export interface DocumentRequirement {
+  id: string;
+  name: string;
+  document_type: string;
+  description: string | null;
+  is_mandatory: boolean;
+  is_active: boolean;
+  has_expiry: boolean;
+  applicable_to: string;
+  applicable_ids: string[];
+  allowed_file_types: string;
+  max_file_size_mb: number;
+}
+
+export interface DocumentRequirementFormData {
+  name: string;
+  document_type: string;
+  description?: string;
+  is_mandatory: boolean;
+  has_expiry: boolean;
+  applicable_to: string;
+  applicable_ids?: string[];
+  allowed_file_types?: string;
+  max_file_size_mb?: number;
+}
+
+export type EmployeeDocStatus = "pending" | "verified" | "rejected" | "missing";
+
+export interface EmployeeDocument {
+  id: string;
+  document_type: string;
+  document_name: string;
+  description: string | null;
+  status: EmployeeDocStatus;
+  verified: boolean;
+  verified_at: string | null;
+  rejection_reason: string | null;
+  expires_at: string | null;
+  attachment: Attachment | null;
+  document_requirement_id: string;
+  created_at: string;
+  verified_by?: UserSummary | null;
+  document_requirement?: DocumentRequirement;
+  employee?: EmployeeListItem;
+}
+
+export interface RequirementWithStatus {
+  requirement: Pick<DocumentRequirement, "id" | "name" | "document_type" | "is_mandatory" | "has_expiry">;
+  submission: EmployeeDocument | null;
+  status: EmployeeDocStatus;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Policy Documents                                                   */
+/* ------------------------------------------------------------------ */
+
+export type PolicyCategory = "hr_policy" | "code_of_conduct" | "compliance" | "safety" | "travel" | "benefits" | "other";
+export type PolicyStatus = "draft" | "published" | "archived";
+export type AckStatus = "pending" | "acknowledged" | "not_applicable";
+
+export interface PolicyDocument {
+  id: string;
+  title: string;
+  category: PolicyCategory;
+  status: PolicyStatus;
+  description: string | null;
+  effective_date: string | null;
+  expiry_date: string | null;
+  version_number: number;
+  acknowledgement_required: boolean;
+  published_at: string | null;
+  created_at: string;
+  attachment: Attachment;
+  published_by: UserSummary | null;
+  applicable_to: string;
+  applicable_ids: string[];
+  previous_version_id: string | null;
+  acknowledgement_stats?: { total: number; acknowledged: number; pending: number };
+  acknowledgement_status?: AckStatus;
+  acknowledged_at?: string | null;
+}
+
+export interface PolicyDocumentFormData {
+  title: string;
+  description?: string;
+  category: PolicyCategory;
+  acknowledgement_required: boolean;
+  effective_date?: string;
+  applicable_to: string;
+  applicable_ids?: string[];
+}
+
+export interface AckReportEntry {
+  employee_id: string;
+  employee_name: string;
+  department: string;
+  designation: string;
+  acknowledged_at?: string;
+  status: string;
+}
+
+export interface AckReport {
+  policy: { id: string; title: string; version: number };
+  stats: { total: number; acknowledged: number; pending: number };
+  acknowledged: AckReportEntry[];
+  pending: AckReportEntry[];
+}
