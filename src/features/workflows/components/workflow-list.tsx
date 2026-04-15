@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Card, CardContent, Button, Alert } from "@/components/ui";
+import { useAuth } from "@/contexts/auth-context";
 import { useWorkflowDefinitions } from "../hooks/use-workflow-definitions";
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -12,6 +13,7 @@ const ENTITY_LABELS: Record<string, string> = {
 };
 
 export function WorkflowList() {
+  const { can } = useAuth();
   const { definitions, loading, error, remove } = useWorkflowDefinitions();
 
   if (loading) {
@@ -30,9 +32,11 @@ export function WorkflowList() {
         <h2 className="text-lg font-semibold text-text-primary">
           Workflow Definitions
         </h2>
-        <Link href="/settings/workflows/new">
-          <Button>New Workflow</Button>
-        </Link>
+        {can("workflow", "create") && (
+          <Link href="/settings/workflows/new">
+            <Button>New Workflow</Button>
+          </Link>
+        )}
       </div>
 
       {definitions.length === 0 && !error && (
@@ -66,22 +70,26 @@ export function WorkflowList() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <Link href={`/settings/workflows/${def.id}`}>
-                  <Button variant="ghost" size="sm">
-                    Edit
+                {can("workflow", "update") && (
+                  <Link href={`/settings/workflows/${def.id}`}>
+                    <Button variant="ghost" size="sm">
+                      Edit
+                    </Button>
+                  </Link>
+                )}
+                {can("workflow", "delete") && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      if (confirm("Delete this workflow definition?")) {
+                        remove(def.id);
+                      }
+                    }}
+                  >
+                    Delete
                   </Button>
-                </Link>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    if (confirm("Delete this workflow definition?")) {
-                      remove(def.id);
-                    }
-                  }}
-                >
-                  Delete
-                </Button>
+                )}
               </div>
             </CardContent>
           </Card>
