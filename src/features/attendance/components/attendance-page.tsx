@@ -346,47 +346,57 @@ function AttendanceVisual({ record, shift, use24h }: { record: AttendanceRecord;
   }
   if (!record.clock_in) return null;
 
-  // Dynamic range: 2h before shift start to 2h after shift end (or fallback 7-21)
-  const shiftStart = shift ? parseHM(shift.start_time) : 9;
-  const shiftEnd = shift ? parseHM(shift.end_time) : 18;
-  const rangeStart = Math.floor(Math.max(0, shiftStart - 2));
-  const rangeEnd = Math.ceil(Math.min(24, shiftEnd + 2));
-  const rangeHours = rangeEnd - rangeStart;
-  const toPct = (h: number) => Math.max(0, Math.min(100, ((h - rangeStart) / rangeHours) * 100));
+  // Fixed range: show full day 6AM–11PM with hourly ticks like Keka
+  const rangeStart = 6;
+  const rangeEnd = 23;
+  const toPct = (h: number) => Math.max(0, Math.min(100, ((h - rangeStart) / (rangeEnd - rangeStart)) * 100));
 
   const inHour = new Date(record.clock_in).getHours() + new Date(record.clock_in).getMinutes() / 60;
   const outHour = record.clock_out
     ? new Date(record.clock_out).getHours() + new Date(record.clock_out).getMinutes() / 60
     : new Date().getHours() + new Date().getMinutes() / 60;
 
-  // Generate tick marks for every hour in range
+  const shiftStartH = shift ? parseHM(shift.start_time) : null;
+  const shiftEndH = shift ? parseHM(shift.end_time) : null;
+
+  // Hourly ticks
   const ticks: number[] = [];
   for (let h = rangeStart; h <= rangeEnd; h++) ticks.push(h);
 
   return (
     <div className="relative" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
-      <div className="relative h-4 w-full cursor-pointer">
-        {/* Tick marks — small vertical dashes */}
+      <div className="relative h-2.5 w-full cursor-pointer">
+        {/* Grey track with tick marks */}
         {ticks.map((h) => (
-          <div key={h} className="absolute top-0 h-full flex flex-col items-center" style={{ left: `${toPct(h)}%` }}>
-            <div className={`w-px ${h === shiftStart || h === shiftEnd ? "h-full bg-text-muted" : "h-1/2 bg-border"}`} />
-          </div>
+          <div key={h} className="absolute top-0 h-full w-px bg-border" style={{ left: `${toPct(h)}%` }} />
         ))}
 
-        {/* Shift window marker — small triangle at bottom for start/end */}
-        <div className="absolute bottom-0 w-0 h-0 border-l-[3px] border-r-[3px] border-b-[4px] border-transparent border-b-text-muted" style={{ left: `${toPct(shiftStart)}%`, transform: "translateX(-3px)" }} />
-        <div className="absolute bottom-0 w-0 h-0 border-l-[3px] border-r-[3px] border-b-[4px] border-transparent border-b-text-muted" style={{ left: `${toPct(shiftEnd)}%`, transform: "translateX(-3px)" }} />
+        {/* Shift window — subtle grey background */}
+        {shiftStartH != null && shiftEndH != null && (
+          <div
+            className="absolute top-0 h-full bg-surface-tertiary"
+            style={{ left: `${toPct(shiftStartH)}%`, width: `${toPct(shiftEndH) - toPct(shiftStartH)}%` }}
+          />
+        )}
 
-        {/* Filled work bar */}
+        {/* Shift boundary markers — small triangles */}
+        {shiftStartH != null && (
+          <div className="absolute -bottom-1 w-0 h-0 border-l-[2.5px] border-r-[2.5px] border-b-[3px] border-transparent border-b-text-muted" style={{ left: `${toPct(shiftStartH)}%`, transform: "translateX(-2.5px)" }} />
+        )}
+        {shiftEndH != null && (
+          <div className="absolute -bottom-1 w-0 h-0 border-l-[2.5px] border-r-[2.5px] border-b-[3px] border-transparent border-b-text-muted" style={{ left: `${toPct(shiftEndH)}%`, transform: "translateX(-2.5px)" }} />
+        )}
+
+        {/* Filled work bar — the actual clock in/out range */}
         <div
-          className="absolute top-0.5 bottom-0.5 rounded-full bg-primary-500"
-          style={{ left: `${toPct(inHour)}%`, width: `${Math.max(0.5, toPct(outHour) - toPct(inHour))}%` }}
+          className="absolute top-0 h-full rounded-full bg-primary-500"
+          style={{ left: `${toPct(inHour)}%`, width: `${Math.max(0.8, toPct(outHour) - toPct(inHour))}%` }}
         />
       </div>
 
       {/* Hover tooltip */}
       {hover && (
-        <div className="absolute z-30 bottom-full left-1/2 -translate-x-1/2 mb-1.5 rounded-lg border border-border bg-surface shadow-lg px-3 py-2 text-xs whitespace-nowrap">
+        <div className="absolute z-30 bottom-full left-1/2 -translate-x-1/2 mb-2 rounded-lg border border-border bg-surface shadow-lg px-3 py-2 text-xs whitespace-nowrap">
           <div className="flex items-center gap-3">
             <span>In: <strong className="text-green-600">{formatTime(record.clock_in, use24h)}</strong></span>
             <span>Out: <strong className={record.clock_out ? "text-red-500" : "text-text-muted"}>{record.clock_out ? formatTime(record.clock_out, use24h) : "In Progress"}</strong></span>
