@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Button, Card, CardContent, Alert } from "@/components/ui";
+import { useAuth } from "@/contexts/auth-context";
 import { useLeaveTypes } from "../hooks/use-leave-types";
 import { LeaveTypeForm } from "./leave-type-form";
 import type { LeaveTypeSummary, LeaveTypeDetail } from "@/types";
@@ -11,6 +12,7 @@ interface LeaveTypeListProps {
 }
 
 export function LeaveTypeList({ onDataChange }: LeaveTypeListProps) {
+  const { can } = useAuth();
   const { leaveTypes, loading, error, fetchDetail, add, update, remove, formError, fieldErrors, clearFormErrors } = useLeaveTypes();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<LeaveTypeDetail | null>(null);
@@ -83,7 +85,7 @@ export function LeaveTypeList({ onDataChange }: LeaveTypeListProps) {
         <p className="text-sm text-text-secondary">
           {leaveTypes.length} leave {leaveTypes.length === 1 ? "type" : "types"} configured
         </p>
-        {!showForm && (
+        {!showForm && can("leave_type", "create") && (
           <Button size="sm" onClick={openNew}>Add Leave Type</Button>
         )}
       </div>
@@ -129,12 +131,16 @@ export function LeaveTypeList({ onDataChange }: LeaveTypeListProps) {
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0 ml-4">
-                <Button size="sm" variant="ghost" onClick={() => handleEdit(lt)} disabled={loadingDetail}>
-                  Edit
-                </Button>
-                <Button size="sm" variant="ghost" className="text-danger" onClick={() => handleDelete(lt.id)}>
-                  Delete
-                </Button>
+                {can("leave_type", "update") && (
+                  <Button size="sm" variant="ghost" onClick={() => handleEdit(lt)} disabled={loadingDetail}>
+                    Edit
+                  </Button>
+                )}
+                {can("leave_type", "delete") && (
+                  <Button size="sm" variant="ghost" className="text-danger" onClick={() => handleDelete(lt.id)}>
+                    Delete
+                  </Button>
+                )}
               </div>
             </div>
           ))}

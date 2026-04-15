@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Button, Card, CardContent, Alert } from "@/components/ui";
+import { useAuth } from "@/contexts/auth-context";
 import { listLeaveTypes } from "@/services/leave-type-service";
 import { useLeavePolicies } from "../hooks/use-leave-policies";
 import { LeavePolicyForm } from "./leave-policy-form";
@@ -12,6 +13,7 @@ interface LeavePolicyListProps {
 }
 
 export function LeavePolicyList({ onDataChange }: LeavePolicyListProps) {
+  const { can } = useAuth();
   const { policies, loading, error, fetchDetail, add, update, remove, formError, fieldErrors, clearFormErrors } = useLeavePolicies();
   const [leaveTypes, setLeaveTypes] = useState<LeaveTypeSummary[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -81,7 +83,7 @@ export function LeavePolicyList({ onDataChange }: LeavePolicyListProps) {
         <p className="text-sm text-text-secondary">
           {policies.length} {policies.length === 1 ? "policy" : "policies"} configured
         </p>
-        {!showForm && (
+        {!showForm && can("leave_policy", "create") && (
           <Button size="sm" onClick={openNew}>Add Policy</Button>
         )}
       </div>
@@ -121,12 +123,16 @@ export function LeavePolicyList({ onDataChange }: LeavePolicyListProps) {
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0 ml-4">
-                <Button size="sm" variant="ghost" onClick={() => handleEdit(p)} disabled={loadingDetail}>
-                  Edit
-                </Button>
-                <Button size="sm" variant="ghost" className="text-danger" onClick={() => handleDelete(p.id)}>
-                  Delete
-                </Button>
+                {can("leave_policy", "update") && (
+                  <Button size="sm" variant="ghost" onClick={() => handleEdit(p)} disabled={loadingDetail}>
+                    Edit
+                  </Button>
+                )}
+                {can("leave_policy", "delete") && (
+                  <Button size="sm" variant="ghost" className="text-danger" onClick={() => handleDelete(p.id)}>
+                    Delete
+                  </Button>
+                )}
               </div>
             </div>
           ))}

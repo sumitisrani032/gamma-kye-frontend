@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Button, Input, Select, Card, CardContent, Alert } from "@/components/ui";
+import { useAuth } from "@/contexts/auth-context";
 import { useHolidayCalendars } from "../hooks/use-holiday-calendars";
 import type { HolidayCalendarDetail, Holiday, HolidayFormData, HolidayType } from "@/types";
 
@@ -58,11 +59,13 @@ function HolidayForm({ onSubmit, onCancel, initial, formError, fieldErrors }: {
 
 /* ─── Calendar Expandable Row ─── */
 
-function CalendarRow({ cal, onDelete, onDataChange, hook }: {
+function CalendarRow({ cal, onDelete, onDataChange, hook, canUpdate, canDelete }: {
   cal: { id: string; name: string; year: number; holidays_count: number; is_active: boolean };
   onDelete: (id: string) => void;
   onDataChange?: () => void;
   hook: ReturnType<typeof useHolidayCalendars>;
+  canUpdate: boolean;
+  canDelete: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState<HolidayCalendarDetail | null>(null);
@@ -117,7 +120,7 @@ function CalendarRow({ cal, onDelete, onDataChange, hook }: {
             <p className="text-xs text-text-muted">{cal.year} &middot; {cal.holidays_count} holidays</p>
           </div>
         </button>
-        <Button size="sm" variant="ghost" className="text-danger" onClick={() => onDelete(cal.id)}>Delete</Button>
+        {canDelete && <Button size="sm" variant="ghost" className="text-danger" onClick={() => onDelete(cal.id)}>Delete</Button>}
       </div>
 
       {open && (
@@ -138,8 +141,8 @@ function CalendarRow({ cal, onDelete, onDataChange, hook }: {
                     </span>
                   </div>
                   <div className="flex gap-1 shrink-0">
-                    <Button size="sm" variant="ghost" onClick={() => { hook.clearFormErrors(); setEditingHol(h); setShowHolForm(true); }}>Edit</Button>
-                    <Button size="sm" variant="ghost" className="text-danger" onClick={() => handleDeleteHoliday(h.id)}>Del</Button>
+                    {canUpdate && <Button size="sm" variant="ghost" onClick={() => { hook.clearFormErrors(); setEditingHol(h); setShowHolForm(true); }}>Edit</Button>}
+                    {canDelete && <Button size="sm" variant="ghost" className="text-danger" onClick={() => handleDeleteHoliday(h.id)}>Del</Button>}
                   </div>
                 </div>
               ))}
@@ -156,7 +159,7 @@ function CalendarRow({ cal, onDelete, onDataChange, hook }: {
               formError={hook.formError}
               fieldErrors={hook.fieldErrors}
             />
-          ) : (
+          ) : canUpdate && (
             <Button size="sm" variant="secondary" onClick={() => { setEditingHol(null); hook.clearFormErrors(); setShowHolForm(true); }}>
               + Add Holiday
             </Button>
@@ -170,6 +173,7 @@ function CalendarRow({ cal, onDelete, onDataChange, hook }: {
 /* ─── Main Component ─── */
 
 export function HolidayCalendarList({ onDataChange }: HolidayCalendarListProps) {
+  const { can } = useAuth();
   const hook = useHolidayCalendars();
   const { calendars, loading, error, addCalendar, removeCalendar, clearFormErrors, formError, fieldErrors } = hook;
   const [showCalForm, setShowCalForm] = useState(false);
@@ -210,7 +214,7 @@ export function HolidayCalendarList({ onDataChange }: HolidayCalendarListProps) 
         <p className="text-sm text-text-secondary">
           {calendars.length} {calendars.length === 1 ? "calendar" : "calendars"} configured
         </p>
-        {!showCalForm && (
+        {!showCalForm && can("holiday_calendar", "create") && (
           <Button size="sm" onClick={() => { clearFormErrors(); setShowCalForm(true); }}>Add Calendar</Button>
         )}
       </div>
@@ -233,7 +237,7 @@ export function HolidayCalendarList({ onDataChange }: HolidayCalendarListProps) 
       {calendars.length > 0 && (
         <div className="divide-y divide-border rounded-xl border border-border bg-surface overflow-hidden">
           {calendars.map((cal) => (
-            <CalendarRow key={cal.id} cal={cal} onDelete={handleDeleteCalendar} onDataChange={onDataChange} hook={hook} />
+            <CalendarRow key={cal.id} cal={cal} onDelete={handleDeleteCalendar} onDataChange={onDataChange} hook={hook} canUpdate={can("holiday_calendar", "update")} canDelete={can("holiday_calendar", "delete")} />
           ))}
         </div>
       )}
