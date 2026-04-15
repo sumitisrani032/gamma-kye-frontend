@@ -1017,6 +1017,43 @@ export interface AttendanceRecord {
   sessions?: AttendanceSession[];
 }
 
+export type WorkMode = "office" | "wfh" | "hybrid";
+export type WeekDayName = "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday";
+
+export interface WfhPolicy {
+  id: string;
+  name: string;
+  description?: string | null;
+  requires_approval: boolean;
+  max_wfh_per_month: number;
+  min_days_advance: number;
+  allowed_on_probation: boolean;
+  allowed_days: WeekDayName[];
+  applicable_to: string;
+  applicable_ids: string[];
+  priority: number;
+  effective_from: string;
+  effective_to: string | null;
+  is_active: boolean;
+  created_at?: string;
+}
+
+export interface WfhPolicyFormData {
+  name: string;
+  description?: string;
+  requires_approval: boolean;
+  max_wfh_per_month: number;
+  min_days_advance: number;
+  allowed_on_probation: boolean;
+  allowed_days: WeekDayName[];
+  applicable_to: string;
+  applicable_ids: string[];
+  priority: number;
+  effective_from: string;
+  effective_to?: string | null;
+  is_active: boolean;
+}
+
 export interface TodayAttendanceResponse {
   state: AttendanceState;
   attendance: AttendanceRecord | null;
