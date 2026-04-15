@@ -331,44 +331,65 @@ function RegularizeForm({ record, onSubmit, onCancel }: {
   );
 }
 
-/* ─── Attendance Visual Bar ─── */
+/* ─── Attendance Visual Bar (with shift window) ─── */
 
-function AttendanceVisual({ record }: { record: AttendanceRecord }) {
+function parseHM(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return h + m / 60;
+}
+
+function AttendanceVisual({ record, shift }: { record: AttendanceRecord; shift: Shift | null }) {
   if (record.status === "weekly_off" || record.status === "holiday" || record.status === "on_leave") {
-    return <div className="h-2 w-full rounded-full bg-surface-tertiary" />;
+    return <div className="h-5 w-full rounded bg-surface-tertiary" />;
   }
-  if (!record.clock_in) return <div className="h-2 w-full rounded-full bg-surface-tertiary" />;
+  if (!record.clock_in) return <div className="h-5 w-full rounded bg-surface-tertiary" />;
+
+  const rangeStart = 0;
+  const rangeEnd = 24;
+  const rangeHours = rangeEnd - rangeStart;
+  const toPct = (h: number) => Math.max(0, Math.min(100, ((h - rangeStart) / rangeHours) * 100));
 
   const inHour = new Date(record.clock_in).getHours() + new Date(record.clock_in).getMinutes() / 60;
   const outHour = record.clock_out
     ? new Date(record.clock_out).getHours() + new Date(record.clock_out).getMinutes() / 60
     : new Date().getHours() + new Date().getMinutes() / 60;
 
-  // Map 6am–10pm (16h range) to 0%–100%
-  const startPct = Math.max(0, Math.min(100, ((inHour - 6) / 16) * 100));
-  const endPct = Math.max(0, Math.min(100, ((outHour - 6) / 16) * 100));
+  const shiftStart = shift ? parseHM(shift.start_time) : null;
+  const shiftEnd = shift ? parseHM(shift.end_time) : null;
 
-  // Tick marks for hours
-  const ticks = [];
-  for (let h = 6; h <= 22; h += 2) {
-    ticks.push(((h - 6) / 16) * 100);
-  }
+  // Tick marks every 4 hours
+  const ticks = [0, 4, 8, 12, 16, 20, 24];
 
   return (
-    <div className="relative h-3 w-full">
-      {/* Tick marks */}
-      {ticks.map((pct) => (
+    <div className="space-y-0.5">
+      <div className="relative h-5 w-full rounded bg-surface-tertiary overflow-hidden">
+        {/* Tick marks */}
+        {ticks.map((h) => (
+          <div key={h} className="absolute top-0 h-full w-px bg-border" style={{ left: `${toPct(h)}%` }} />
+        ))}
+
+        {/* Shift window */}
+        {shiftStart != null && shiftEnd != null && (
+          <div
+            className="absolute top-0 h-full bg-primary-100 border-x border-primary-200"
+            style={{ left: `${toPct(shiftStart)}%`, width: `${toPct(shiftEnd) - toPct(shiftStart)}%` }}
+          />
+        )}
+
+        {/* Actual work bar */}
         <div
-          key={pct}
-          className="absolute top-0 h-3 w-px bg-border"
-          style={{ left: `${pct}%` }}
+          className="absolute top-1 bottom-1 rounded-sm bg-primary-500"
+          style={{ left: `${toPct(inHour)}%`, width: `${Math.max(0.4, toPct(outHour) - toPct(inHour))}%` }}
         />
-      ))}
-      {/* Bar */}
-      <div
-        className="absolute top-0.5 h-2 rounded-full bg-primary-500"
-        style={{ left: `${startPct}%`, width: `${Math.max(1, endPct - startPct)}%` }}
-      />
+
+        {/* Clock in marker */}
+        <div className="absolute top-0 h-full w-0.5 bg-green-600" style={{ left: `${toPct(inHour)}%` }} />
+
+        {/* Clock out marker */}
+        {record.clock_out && (
+          <div className="absolute top-0 h-full w-0.5 bg-red-500" style={{ left: `${toPct(outHour)}%` }} />
+        )}
+      </div>
     </div>
   );
 }
@@ -376,13 +397,14 @@ function AttendanceVisual({ record }: { record: AttendanceRecord }) {
 /* ─── Attendance Log Table ─── */
 
 function AttendanceLog({
-  records, regularizations, use24h, regularizingId,
+  records, regularizations, use24h, regularizingId, shift,
   onRegularize, onSubmitReg, onCancelReg, onCancelRequest,
 }: {
   records: AttendanceRecord[];
   regularizations: RegularizationSummary[];
   use24h: boolean;
   regularizingId: string | null;
+  shift: Shift | null;
   onRegularize: (id: string) => void;
   onSubmitReg: (data: { attendance_record_id: string; requested_clock_in: string; requested_clock_out: string; reason: string }) => Promise<boolean>;
   onCancelReg: () => void;
@@ -442,7 +464,7 @@ function AttendanceLog({
                         {isOff ? `Full day ${r.status === "weekly_off" ? "Weekly-off" : "Holiday"}` : "On Leave"}
                       </span>
                     ) : (
-                      <AttendanceVisual record={r} />
+                      <AttendanceVisual record={r} shift={shift} />
                     )}
                   </td>
 
@@ -682,6 +704,7 @@ export function AttendancePage() {
               regularizations={reg.regularizations}
               use24h={use24h}
               regularizingId={regularizingId}
+              shift={shift}
               onRegularize={setRegularizingId}
               onSubmitReg={handleSubmitReg}
               onCancelReg={() => setRegularizingId(null)}
