@@ -56,7 +56,7 @@ function DayTooltip({ day, onAction, clocking }: {
         </div>
       )}
       {day.holiday_type && <p className="mt-1 text-text-muted capitalize">{day.holiday_type}</p>}
-      {day.actions.length > 0 && (
+      {day.actions.length > 0 && day.type !== "on_leave" && day.type !== "holiday" && day.type !== "weekly_off" && (
         <div className="mt-1.5 flex flex-wrap gap-1">
           {day.actions.includes("clock_in") && <Button size="sm" onClick={() => onAction("clock_in")} loading={clocking}>Clock In</Button>}
           {day.actions.includes("clock_out") && <Button size="sm" variant="secondary" onClick={() => onAction("clock_out")} loading={clocking}>Clock Out</Button>}
