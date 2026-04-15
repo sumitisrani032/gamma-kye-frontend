@@ -4,7 +4,8 @@ import { useState, useCallback, useEffect } from "react";
 import { Button, Card, CardContent, CardHeader, Input, Alert } from "@/components/ui";
 import { useAttendance } from "../hooks/use-attendance";
 import { useRegularizations } from "../hooks/use-regularizations";
-import type { AttendanceRecord, AttendanceState, AttendanceSummary, RegularizationSummary, Shift } from "@/types";
+import { requestWfh } from "@/services/wfh-request-service";
+import type { AttendanceRecord, AttendanceState, AttendanceSummary, RegularizationSummary, Shift, ApiError } from "@/types";
 
 /* ─── Constants ─── */
 
@@ -365,7 +366,28 @@ function AttendanceVisual({ record, shift, use24h }: { record: AttendanceRecord;
   if (record.status === "weekly_off" || record.status === "holiday" || record.status === "on_leave") {
     return null;
   }
-  if (!record.clock_in) return null;
+
+  // Absent / no clock-in — show empty bar with red absent marker
+  if (!record.clock_in) {
+    const shiftStartH = shift ? parseHM(shift.start_time) : 9;
+    const shiftEndH = shift ? parseHM(shift.end_time) : 18;
+    const rangeStart = 6;
+    const rangeEnd = 23;
+    const toPct = (h: number) => Math.max(0, Math.min(100, ((h - rangeStart) / (rangeEnd - rangeStart)) * 100));
+    const ticks: number[] = [];
+    for (let h = rangeStart; h <= rangeEnd; h++) ticks.push(h);
+
+    return (
+      <div className="relative max-w-64">
+        <div className="relative h-2 w-full cursor-default">
+          {ticks.map((h) => (<div key={h} className="absolute top-0 h-full w-px bg-border" style={{ left: `${toPct(h)}%` }} />))}
+          <div className="absolute top-0 h-full bg-surface-tertiary" style={{ left: `${toPct(shiftStartH)}%`, width: `${toPct(shiftEndH) - toPct(shiftStartH)}%` }} />
+          {/* Red dashed line for absent shift window */}
+          <div className="absolute top-0 h-full rounded-full bg-red-200 border border-dashed border-red-300" style={{ left: `${toPct(shiftStartH)}%`, width: `${toPct(shiftEndH) - toPct(shiftStartH)}%` }} />
+        </div>
+      </div>
+    );
+  }
 
   // Fixed range: show full day 6AM–11PM with hourly ticks like Keka
   const rangeStart = 6;
@@ -462,12 +484,13 @@ function AttendanceVisual({ record, shift, use24h }: { record: AttendanceRecord;
 
 /* ─── Log Status Icon (action column) ─── */
 
-function LogStatusIcon({ record, shift, regularization, onRegularize, onCancelRequest }: {
+function LogStatusIcon({ record, shift, regularization, onRegularize, onCancelRequest, onApplyWfh }: {
   record: AttendanceRecord;
   shift: Shift | null;
   regularization?: RegularizationSummary;
   onRegularize: () => void;
   onCancelRequest?: () => void;
+  onApplyWfh?: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -525,7 +548,7 @@ function LogStatusIcon({ record, shift, regularization, onRegularize, onCancelRe
   if (isAbsent) {
     menuItems.push({ label: "Regularize", onClick: onRegularize });
     menuItems.push({ label: "Apply Leave", onClick: () => { window.location.href = `/leaves?date=${record.date}`; } });
-    menuItems.push({ label: "Apply WFH", onClick: () => { /* WFH request - future */ } });
+    if (onApplyWfh) menuItems.push({ label: "Apply WFH", onClick: onApplyWfh });
   } else if (!hoursCompleted) {
     menuItems.push({ label: "Regularize", onClick: onRegularize });
   }
@@ -572,13 +595,14 @@ function LogStatusIcon({ record, shift, regularization, onRegularize, onCancelRe
 
 function AttendanceLog({
   records, regularizations, use24h, regularizingId, shift,
-  onRegularize, onSubmitReg, onCancelReg, onCancelRequest,
+  onRegularize, onSubmitReg, onCancelReg, onCancelRequest, onApplyWfh,
 }: {
   records: AttendanceRecord[];
   regularizations: RegularizationSummary[];
   use24h: boolean;
   regularizingId: string | null;
   shift: Shift | null;
+  onApplyWfh?: (date: string) => void;
   onRegularize: (id: string) => void;
   onSubmitReg: (data: { attendance_record_id: string; requested_clock_in: string; requested_clock_out: string; reason: string }) => Promise<boolean>;
   onCancelReg: () => void;
@@ -684,6 +708,7 @@ function AttendanceLog({
                       regularization={reg}
                       onRegularize={() => onRegularize(r.id)}
                       onCancelRequest={reg ? () => onCancelRequest(reg.id) : undefined}
+                      onApplyWfh={onApplyWfh ? () => onApplyWfh(r.date) : undefined}
                     />
                   </td>
                 </tr>
@@ -784,6 +809,59 @@ function MonthPills({ year, month, onSelect }: {
 // Need React for Fragment
 import React from "react";
 
+/* ─── WFH Request Form ─── */
+
+function WfhRequestForm({ prefillDate, onClose, onSuccess }: {
+  prefillDate?: string; onClose: () => void; onSuccess: () => void;
+}) {
+  const [date, setDate] = useState(prefillDate || "");
+  const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [wfhError, setWfhError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!date || !reason.trim()) return;
+    setSubmitting(true);
+    setWfhError("");
+    try {
+      await requestWfh(date, reason.trim());
+      onSuccess();
+      onClose();
+    } catch (err) {
+      setWfhError((err as ApiError).error || "Failed to request WFH.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <Card className="w-full max-w-sm mx-4 shadow-xl">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-text-primary">Request Work From Home</h3>
+            <button type="button" onClick={onClose} className="text-xl text-text-muted hover:text-text-primary leading-none">&times;</button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {wfhError && <Alert variant="error" className="mb-3">{wfhError}</Alert>}
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required min={new Date().toISOString().slice(0, 10)} />
+            <Input label="Reason" value={reason} onChange={(e) => setReason(e.target.value)} required placeholder="Why do you need WFH?" />
+            <div className="flex gap-2 pt-1">
+              <Button type="submit" loading={submitting}>Request WFH</Button>
+              <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+/* ─── Main ─── */
+
 export function AttendancePage() {
   const {
     today, state, records, summary, shift, loading, clocking, error,
@@ -794,6 +872,7 @@ export function AttendancePage() {
   const [regularizingId, setRegularizingId] = useState<string | null>(null);
   const [use24h, setUse24h] = useState(false);
   const [logTab, setLogTab] = useState<LogTab>("log");
+  const [wfhDate, setWfhDate] = useState<string | null>(null);
 
   const handleSubmitReg = useCallback(async (data: { attendance_record_id: string; requested_clock_in: string; requested_clock_out: string; reason: string }) => {
     const ok = await reg.submit(data);
@@ -818,6 +897,11 @@ export function AttendancePage() {
     <div className="space-y-6">
       {error && <Alert variant="error">{error}</Alert>}
       {reg.formError && <Alert variant="error">{reg.formError}</Alert>}
+
+      {/* WFH Request Modal */}
+      {wfhDate !== null && (
+        <WfhRequestForm prefillDate={wfhDate} onClose={() => setWfhDate(null)} onSuccess={() => { /* refresh handled by backend notification */ }} />
+      )}
 
       {/* Top Row: Stats | Timings | Actions */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -871,6 +955,7 @@ export function AttendancePage() {
               onSubmitReg={handleSubmitReg}
               onCancelReg={() => setRegularizingId(null)}
               onCancelRequest={reg.cancel}
+              onApplyWfh={(date) => setWfhDate(date)}
             />
           ) : (
             <CardContent>
