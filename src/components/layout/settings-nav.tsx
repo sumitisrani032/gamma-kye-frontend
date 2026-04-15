@@ -33,6 +33,11 @@ const SETTINGS_ITEMS: SettingsNavItem[] = [
   { name: "Leave Policies", href: "/settings/leave-policies", group: "Leave", permission: ["leave_policy", "read"] },
   { name: "Holiday Calendars", href: "/settings/holiday-calendars", group: "Leave", permission: ["holiday_calendar", "read"] },
 
+  // Documents
+  { name: "Policy Documents", href: "/settings/policy-documents", group: "Documents", permission: ["policy_document", "read", "global"] },
+  { name: "Doc Requirements", href: "/settings/document-requirements", group: "Documents", permission: ["document_requirement", "read", "global"] },
+  { name: "Doc Verifications", href: "/settings/document-verifications", group: "Documents", permission: ["employee_document", "verify"] },
+
   // Access Control
   { name: "Roles", href: "/settings/roles", group: "Access Control", permission: ["role", "read", "global"] },
   { name: "Workflows", href: "/settings/workflows", group: "Access Control", permission: ["workflow", "read"] },
