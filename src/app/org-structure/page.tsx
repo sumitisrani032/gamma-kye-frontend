@@ -42,7 +42,7 @@ export default function OrgStructurePage() {
 
   return (
     <ProtectedRoute>
-      <div className="flex h-screen overflow-hidden">
+      <div key={user?.id} className="flex h-screen overflow-hidden">
         <TenantSidebar />
         <main className="flex-1 overflow-y-auto">
           <TopBar

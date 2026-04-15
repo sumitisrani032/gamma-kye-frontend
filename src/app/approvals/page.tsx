@@ -25,9 +25,10 @@ const TABS: TabConfig[] = [
 ];
 
 export default function ApprovalsPage() {
+  const { user } = useAuth();
   return (
     <ProtectedRoute>
-      <ApprovalsContent />
+      <ApprovalsContent key={user?.id} />
     </ProtectedRoute>
   );
 }
