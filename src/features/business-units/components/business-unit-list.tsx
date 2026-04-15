@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Button, Card, CardContent, Alert } from "@/components/ui";
+import { useAuth } from "@/contexts/auth-context";
 import { useBusinessUnits } from "../hooks/use-business-units";
 import { BusinessUnitForm } from "./business-unit-form";
 import type { BusinessUnit } from "@/types";
@@ -11,6 +12,7 @@ interface BusinessUnitListProps {
 }
 
 export function BusinessUnitList({ onDataChange }: BusinessUnitListProps) {
+  const { can } = useAuth();
   const { units, loading, error, add, update, remove, formError, fieldErrors, clearFormErrors } = useBusinessUnits();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<BusinessUnit | null>(null);
@@ -58,7 +60,7 @@ export function BusinessUnitList({ onDataChange }: BusinessUnitListProps) {
         <p className="text-sm text-text-secondary">
           {units.length} business {units.length === 1 ? "unit" : "units"} configured
         </p>
-        {!showForm && <Button size="sm" onClick={openNew}>Add Business Unit</Button>}
+        {!showForm && can("business_unit", "create") && <Button size="sm" onClick={openNew}>Add Business Unit</Button>}
       </div>
 
       {showForm && (
@@ -90,8 +92,8 @@ export function BusinessUnitList({ onDataChange }: BusinessUnitListProps) {
                 {u.description && <p className="text-xs text-text-muted mt-0.5">{u.description}</p>}
               </div>
               <div className="flex items-center gap-2 shrink-0 ml-4">
-                <Button size="sm" variant="ghost" onClick={() => handleEdit(u)}>Edit</Button>
-                <Button size="sm" variant="ghost" className="text-danger" onClick={() => handleDelete(u.id)}>Delete</Button>
+                {can("business_unit", "update") && <Button size="sm" variant="ghost" onClick={() => handleEdit(u)}>Edit</Button>}
+                {can("business_unit", "delete") && <Button size="sm" variant="ghost" className="text-danger" onClick={() => handleDelete(u.id)}>Delete</Button>}
               </div>
             </div>
           ))}

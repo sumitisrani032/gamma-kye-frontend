@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Button, Card, CardContent, Alert } from "@/components/ui";
+import { useAuth } from "@/contexts/auth-context";
 import { useDepartments } from "../hooks/use-departments";
 import { DepartmentForm } from "./department-form";
 import type { DepartmentSummary } from "@/types";
@@ -11,6 +12,7 @@ interface DepartmentListProps {
 }
 
 export function DepartmentList({ onDataChange }: DepartmentListProps) {
+  const { can } = useAuth();
   const { departments, loading, error, add, update, remove, formError, fieldErrors, clearFormErrors } = useDepartments();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<DepartmentSummary | null>(null);
@@ -78,7 +80,7 @@ export function DepartmentList({ onDataChange }: DepartmentListProps) {
         <p className="text-sm text-text-secondary">
           {departments.length} {departments.length === 1 ? "department" : "departments"} configured
         </p>
-        {!showForm && (
+        {!showForm && can("department", "create") && (
           <Button size="sm" onClick={openNew}>Add Department</Button>
         )}
       </div>
@@ -111,6 +113,8 @@ export function DepartmentList({ onDataChange }: DepartmentListProps) {
               onEdit={handleEdit}
               onDelete={handleDelete}
               indent={0}
+              canUpdate={can("department", "update")}
+              canDelete={can("department", "delete")}
             />
           ))}
         </div>
@@ -125,9 +129,11 @@ interface DepartmentRowProps {
   onEdit: (d: DepartmentSummary) => void;
   onDelete: (id: string) => void;
   indent: number;
+  canUpdate: boolean;
+  canDelete: boolean;
 }
 
-function DepartmentRow({ dept, children, onEdit, onDelete, indent }: DepartmentRowProps) {
+function DepartmentRow({ dept, children, onEdit, onDelete, indent, canUpdate, canDelete }: DepartmentRowProps) {
   return (
     <>
       <div className="flex items-center justify-between px-4 py-3" style={{ paddingLeft: `${1 + indent * 1.5}rem` }}>
@@ -143,10 +149,12 @@ function DepartmentRow({ dept, children, onEdit, onDelete, indent }: DepartmentR
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0 ml-4">
-          <Button size="sm" variant="ghost" onClick={() => onEdit(dept)}>
-            Edit
-          </Button>
-          {dept.employees_count === 0 && (
+          {canUpdate && (
+            <Button size="sm" variant="ghost" onClick={() => onEdit(dept)}>
+              Edit
+            </Button>
+          )}
+          {dept.employees_count === 0 && canDelete && (
             <Button size="sm" variant="ghost" className="text-danger" onClick={() => onDelete(dept.id)}>
               Delete
             </Button>
@@ -154,7 +162,7 @@ function DepartmentRow({ dept, children, onEdit, onDelete, indent }: DepartmentR
         </div>
       </div>
       {children.map((child) => (
-        <DepartmentRow key={child.id} dept={child} children={[]} onEdit={onEdit} onDelete={onDelete} indent={indent + 1} />
+        <DepartmentRow key={child.id} dept={child} children={[]} onEdit={onEdit} onDelete={onDelete} indent={indent + 1} canUpdate={canUpdate} canDelete={canDelete} />
       ))}
     </>
   );

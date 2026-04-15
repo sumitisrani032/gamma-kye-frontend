@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Button, Card, CardContent, Alert } from "@/components/ui";
+import { useAuth } from "@/contexts/auth-context";
 import { useLocations } from "../hooks/use-locations";
 import { LocationForm } from "./location-form";
 import type { LocationDetail, LocationSummary } from "@/types";
@@ -11,6 +12,7 @@ interface LocationListProps {
 }
 
 export function LocationList({ onDataChange }: LocationListProps) {
+  const { can } = useAuth();
   const { locations, loading, error, add, update, remove, formError, fieldErrors, clearFormErrors } = useLocations();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<LocationDetail | null>(null);
@@ -75,7 +77,7 @@ export function LocationList({ onDataChange }: LocationListProps) {
         <p className="text-sm text-text-secondary">
           {locations.length} {locations.length === 1 ? "location" : "locations"} configured
         </p>
-        {!showForm && (
+        {!showForm && can("location", "create") && (
           <Button size="sm" onClick={openNew}>Add Location</Button>
         )}
       </div>
@@ -116,10 +118,12 @@ export function LocationList({ onDataChange }: LocationListProps) {
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0 ml-4">
-                <Button size="sm" variant="ghost" onClick={() => handleEdit(l)}>
-                  Edit
-                </Button>
-                {!l.is_headquarters && (
+                {can("location", "update") && (
+                  <Button size="sm" variant="ghost" onClick={() => handleEdit(l)}>
+                    Edit
+                  </Button>
+                )}
+                {!l.is_headquarters && can("location", "delete") && (
                   <Button size="sm" variant="ghost" className="text-danger" onClick={() => handleDelete(l.id)}>
                     Delete
                   </Button>

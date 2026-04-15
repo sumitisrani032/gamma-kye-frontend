@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Button, Card, CardContent, Alert } from "@/components/ui";
+import { useAuth } from "@/contexts/auth-context";
 import { useGrades } from "../hooks/use-grades";
 import { GradeForm } from "./grade-form";
 import type { Grade } from "@/types";
@@ -11,6 +12,7 @@ interface GradeListProps {
 }
 
 export function GradeList({ onDataChange }: GradeListProps) {
+  const { can } = useAuth();
   const { grades, loading, error, add, update, remove, formError, fieldErrors, clearFormErrors } = useGrades();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Grade | null>(null);
@@ -67,7 +69,7 @@ export function GradeList({ onDataChange }: GradeListProps) {
         <p className="text-sm text-text-secondary">
           {grades.length} {grades.length === 1 ? "grade" : "grades"} configured
         </p>
-        {!showForm && (
+        {!showForm && can("grade", "create") && (
           <Button size="sm" onClick={openNew}>Add Grade</Button>
         )}
       </div>
@@ -106,12 +108,16 @@ export function GradeList({ onDataChange }: GradeListProps) {
                 )}
               </div>
               <div className="flex items-center gap-2 shrink-0 ml-4">
-                <Button size="sm" variant="ghost" onClick={() => handleEdit(g)}>
-                  Edit
-                </Button>
-                <Button size="sm" variant="ghost" className="text-danger" onClick={() => handleDelete(g.id)}>
-                  Delete
-                </Button>
+                {can("grade", "update") && (
+                  <Button size="sm" variant="ghost" onClick={() => handleEdit(g)}>
+                    Edit
+                  </Button>
+                )}
+                {can("grade", "delete") && (
+                  <Button size="sm" variant="ghost" className="text-danger" onClick={() => handleDelete(g.id)}>
+                    Delete
+                  </Button>
+                )}
               </div>
             </div>
           ))}

@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Button, Card, CardContent, Alert } from "@/components/ui";
+import { useAuth } from "@/contexts/auth-context";
 import { getCompany } from "@/services/company-service";
 import { useCompanies } from "../hooks/use-companies";
 import { CompanyForm } from "./company-form";
@@ -12,6 +13,7 @@ interface CompanyListProps {
 }
 
 export function CompanyList({ onDataChange }: CompanyListProps) {
+  const { can } = useAuth();
   const { companies, loading, error, add, update, remove, formError, fieldErrors, clearFormErrors } = useCompanies();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<CompanyDetail | null>(null);
@@ -77,7 +79,7 @@ export function CompanyList({ onDataChange }: CompanyListProps) {
         <p className="text-sm text-text-secondary">
           {companies.length} {companies.length === 1 ? "company" : "companies"} configured
         </p>
-        {!showForm && (
+        {!showForm && can("company", "create") && (
           <Button size="sm" onClick={openNew}>Add Company</Button>
         )}
       </div>
@@ -117,10 +119,12 @@ export function CompanyList({ onDataChange }: CompanyListProps) {
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0 ml-4">
-                <Button size="sm" variant="ghost" onClick={() => handleEdit(c.id)} disabled={loadingDetail}>
-                  Edit
-                </Button>
-                {!c.is_primary && (
+                {can("company", "update") && (
+                  <Button size="sm" variant="ghost" onClick={() => handleEdit(c.id)} disabled={loadingDetail}>
+                    Edit
+                  </Button>
+                )}
+                {!c.is_primary && can("company", "delete") && (
                   <Button size="sm" variant="ghost" className="text-danger" onClick={() => handleDelete(c.id)}>
                     Delete
                   </Button>

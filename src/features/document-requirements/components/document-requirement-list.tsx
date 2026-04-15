@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Button, Card, CardContent, CardHeader, Input, Select, Alert } from "@/components/ui";
+import { useAuth } from "@/contexts/auth-context";
 import { useDocumentRequirements } from "../hooks/use-document-requirements";
 import type { DocumentRequirement, DocumentRequirementFormData } from "@/types";
 
@@ -74,6 +75,7 @@ function RequirementForm({ initial, onSubmit, onCancel }: {
 }
 
 export function DocumentRequirementList() {
+  const { can } = useAuth();
   const { requirements, loading, error, formError, add, update, remove, clearFormErrors } = useDocumentRequirements();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<DocumentRequirement | null>(null);
@@ -102,7 +104,7 @@ export function DocumentRequirementList() {
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-text-secondary">{requirements.length} requirement{requirements.length !== 1 ? "s" : ""}</p>
-        {!showForm && !editing && <Button onClick={() => { clearFormErrors(); setShowForm(true); }}>Add Requirement</Button>}
+        {!showForm && !editing && can("document_requirement", "create") && <Button onClick={() => { clearFormErrors(); setShowForm(true); }}>Add Requirement</Button>}
       </div>
 
       {(showForm || editing) && (
@@ -130,8 +132,8 @@ export function DocumentRequirementList() {
                 <p className="text-xs text-text-muted mt-0.5">{r.description || "No description"} · {r.applicable_to} · {r.allowed_file_types}</p>
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                <Button size="sm" variant="secondary" onClick={() => { clearFormErrors(); setEditing(r); setShowForm(false); }}>Edit</Button>
-                <Button size="sm" variant="ghost" className="text-danger" onClick={() => { if (confirm(`Delete "${r.name}"?`)) remove(r.id); }}>Delete</Button>
+                {can("document_requirement", "update") && <Button size="sm" variant="secondary" onClick={() => { clearFormErrors(); setEditing(r); setShowForm(false); }}>Edit</Button>}
+                {can("document_requirement", "delete") && <Button size="sm" variant="ghost" className="text-danger" onClick={() => { if (confirm(`Delete "${r.name}"?`)) remove(r.id); }}>Delete</Button>}
               </div>
             </div>
           ))}

@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Button, Card, CardContent, Alert } from "@/components/ui";
+import { useAuth } from "@/contexts/auth-context";
 import { useDesignations } from "../hooks/use-designations";
 import { DesignationForm } from "./designation-form";
 import type { Designation } from "@/types";
@@ -11,6 +12,7 @@ interface DesignationListProps {
 }
 
 export function DesignationList({ onDataChange }: DesignationListProps) {
+  const { can } = useAuth();
   const { designations, loading, error, add, update, remove, formError, fieldErrors, clearFormErrors } = useDesignations();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Designation | null>(null);
@@ -67,7 +69,7 @@ export function DesignationList({ onDataChange }: DesignationListProps) {
         <p className="text-sm text-text-secondary">
           {designations.length} {designations.length === 1 ? "designation" : "designations"} configured
         </p>
-        {!showForm && (
+        {!showForm && can("designation", "create") && (
           <Button size="sm" onClick={openNew}>Add Designation</Button>
         )}
       </div>
@@ -106,12 +108,16 @@ export function DesignationList({ onDataChange }: DesignationListProps) {
                 )}
               </div>
               <div className="flex items-center gap-2 shrink-0 ml-4">
-                <Button size="sm" variant="ghost" onClick={() => handleEdit(d)}>
-                  Edit
-                </Button>
-                <Button size="sm" variant="ghost" className="text-danger" onClick={() => handleDelete(d.id)}>
-                  Delete
-                </Button>
+                {can("designation", "update") && (
+                  <Button size="sm" variant="ghost" onClick={() => handleEdit(d)}>
+                    Edit
+                  </Button>
+                )}
+                {can("designation", "delete") && (
+                  <Button size="sm" variant="ghost" className="text-danger" onClick={() => handleDelete(d.id)}>
+                    Delete
+                  </Button>
+                )}
               </div>
             </div>
           ))}

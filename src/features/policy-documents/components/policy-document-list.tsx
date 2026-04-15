@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { Button, Card, CardContent, CardHeader, Input, Select, Alert } from "@/components/ui";
+import { useAuth } from "@/contexts/auth-context";
 import { usePolicyDocuments } from "../hooks/use-policy-documents";
 import type { PolicyDocumentFormData, PolicyCategory } from "@/types";
 
@@ -40,6 +41,7 @@ function formatDate(iso: string | null): string {
 }
 
 export function PolicyDocumentList() {
+  const { can } = useAuth();
   const {
     policies, selectedPolicy, ackReport, loading, error, formError,
     select, clearSelection, add, edit, publish, archive, remove, loadReport, remind,
@@ -86,9 +88,9 @@ export function PolicyDocumentList() {
                 <p className="text-xs text-text-muted mt-1">Version {p.version_number} · Effective {formatDate(p.effective_date)} · File: {p.attachment.file_name}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                {p.status === "draft" && <Button size="sm" onClick={() => publish(p.id)}>Publish</Button>}
-                {p.status === "published" && <Button size="sm" variant="secondary" onClick={() => archive(p.id)}>Archive</Button>}
-                {p.status === "draft" && <Button size="sm" variant="ghost" className="text-danger" onClick={() => { if (confirm("Delete this draft?")) remove(p.id); }}>Delete</Button>}
+                {p.status === "draft" && can("policy_document", "create") && <Button size="sm" onClick={() => publish(p.id)}>Publish</Button>}
+                {p.status === "published" && can("policy_document", "update") && <Button size="sm" variant="secondary" onClick={() => archive(p.id)}>Archive</Button>}
+                {p.status === "draft" && can("policy_document", "delete") && <Button size="sm" variant="ghost" className="text-danger" onClick={() => { if (confirm("Delete this draft?")) remove(p.id); }}>Delete</Button>}
               </div>
             </div>
 
@@ -169,7 +171,7 @@ export function PolicyDocumentList() {
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-text-secondary">{policies.length} polic{policies.length !== 1 ? "ies" : "y"}</p>
-        {!showCreate && <Button onClick={() => setShowCreate(true)}>Create Policy</Button>}
+        {!showCreate && can("policy_document", "create") && <Button onClick={() => setShowCreate(true)}>Create Policy</Button>}
       </div>
 
       {showCreate && (
