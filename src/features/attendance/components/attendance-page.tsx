@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { Button, Card, CardContent, CardHeader, Input, Alert } from "@/components/ui";
 import { useAttendance } from "../hooks/use-attendance";
 import { useRegularizations } from "../hooks/use-regularizations";
-import { requestWfh } from "@/services/wfh-request-service";
+import { requestWfh, listWfhRequests, cancelWfh, type WfhRequest } from "@/services/wfh-request-service";
 import type { AttendanceRecord, AttendanceState, AttendanceSummary, RegularizationSummary, Shift, ApiError } from "@/types";
 
 /* ─── Constants ─── */
@@ -745,25 +745,31 @@ function AttendanceLog({
   );
 }
 
-/* ─── Regularization Requests Tab ─── */
+/* ─── Attendance Requests Tab (Regularization + WFH) ─── */
 
-function RegularizationRequests({ regularizations, onCancel, use24h }: {
+function AttendanceRequests({ regularizations, wfhRequests, onCancelReg, onCancelWfh, use24h }: {
   regularizations: RegularizationSummary[];
-  onCancel: (id: string) => Promise<boolean>;
+  wfhRequests: WfhRequest[];
+  onCancelReg: (id: string) => Promise<boolean>;
+  onCancelWfh: (id: string) => Promise<void>;
   use24h: boolean;
 }) {
-  if (regularizations.length === 0) {
-    return <p className="text-sm text-text-muted text-center py-8">No regularization requests.</p>;
+  const hasAny = regularizations.length > 0 || wfhRequests.length > 0;
+
+  if (!hasAny) {
+    return <p className="text-sm text-text-muted text-center py-8">No attendance requests.</p>;
   }
 
   return (
     <div className="divide-y divide-border">
+      {/* Regularization requests */}
       {regularizations.map((r) => {
         const dateStr = new Date(r.date).toLocaleDateString([], { weekday: "short", day: "2-digit", month: "short" });
         return (
-          <div key={r.id} className="flex items-center justify-between px-4 py-3">
+          <div key={`reg-${r.id}`} className="flex items-center justify-between px-4 py-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
+                <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-bold bg-purple-100 text-purple-700 uppercase">Regularize</span>
                 <p className="text-sm font-medium text-text-primary">{dateStr}</p>
                 <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${REG_STATUS_STYLES[r.status]}`}>
                   {r.status}
@@ -777,7 +783,29 @@ function RegularizationRequests({ regularizations, onCancel, use24h }: {
               <p className="text-xs text-text-muted">{r.reason}</p>
             </div>
             {r.status === "pending" && (
-              <Button size="sm" variant="ghost" className="text-danger shrink-0" onClick={() => onCancel(r.id)}>Cancel</Button>
+              <Button size="sm" variant="ghost" className="text-danger shrink-0" onClick={() => onCancelReg(r.id)}>Cancel</Button>
+            )}
+          </div>
+        );
+      })}
+
+      {/* WFH requests */}
+      {wfhRequests.map((w) => {
+        const dateStr = new Date(w.date).toLocaleDateString([], { weekday: "short", day: "2-digit", month: "short" });
+        return (
+          <div key={`wfh-${w.id}`} className="flex items-center justify-between px-4 py-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-bold bg-teal-100 text-teal-700 uppercase">WFH</span>
+                <p className="text-sm font-medium text-text-primary">{dateStr}</p>
+                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${REG_STATUS_STYLES[w.status]}`}>
+                  {w.status}
+                </span>
+              </div>
+              <p className="text-xs text-text-muted mt-0.5">{w.reason}</p>
+            </div>
+            {w.status === "pending" && (
+              <Button size="sm" variant="ghost" className="text-danger shrink-0" onClick={() => onCancelWfh(w.id)}>Cancel</Button>
             )}
           </div>
         );
@@ -894,6 +922,11 @@ export function AttendancePage() {
   const [use24h, setUse24h] = useState(false);
   const [logTab, setLogTab] = useState<LogTab>("log");
   const [wfhDate, setWfhDate] = useState<string | null>(null);
+  const [wfhRequests, setWfhRequests] = useState<WfhRequest[]>([]);
+
+  useEffect(() => {
+    listWfhRequests().then(setWfhRequests).catch(() => {});
+  }, []);
 
   const handleSubmitReg = useCallback(async (data: { attendance_record_id: string; requested_clock_in: string; requested_clock_out: string; reason: string }) => {
     const ok = await reg.submit(data);
@@ -921,7 +954,7 @@ export function AttendancePage() {
 
       {/* WFH Request Modal */}
       {wfhDate !== null && (
-        <WfhRequestForm prefillDate={wfhDate} onClose={() => setWfhDate(null)} onSuccess={() => { /* refresh handled by backend notification */ }} />
+        <WfhRequestForm prefillDate={wfhDate} onClose={() => setWfhDate(null)} onSuccess={() => { listWfhRequests().then(setWfhRequests).catch(() => {}); }} />
       )}
 
       {/* Top Row: Stats | Timings | Actions */}
@@ -984,7 +1017,13 @@ export function AttendancePage() {
             </CardContent>
           )
         ) : (
-          <RegularizationRequests regularizations={reg.regularizations} onCancel={reg.cancel} use24h={use24h} />
+          <AttendanceRequests
+            regularizations={reg.regularizations}
+            wfhRequests={wfhRequests}
+            onCancelReg={reg.cancel}
+            onCancelWfh={async (id) => { try { await cancelWfh(id); setWfhRequests((prev) => prev.filter((w) => w.id !== id)); } catch {} }}
+            use24h={use24h}
+          />
         )}
       </Card>
     </div>
