@@ -27,6 +27,7 @@ const SETTINGS_ITEMS: SettingsNavItem[] = [
   // Attendance — Admin, HR Dir, HR Mgr, Dept Mgr (shift:read)
   { name: "Shifts", href: "/settings/shifts", group: "Attendance", permission: ["shift", "read"] },
   { name: "Overtime Rules", href: "/settings/overtime-rules", group: "Attendance", permission: ["overtime_rule", "read"] },
+  { name: "WFH Policies", href: "/settings/wfh-policies", group: "Attendance", permission: ["wfh_policy", "read"] },
 
   // Leave — Admin, HR Dir, HR Mgr (leave_type:read)
   { name: "Leave Types", href: "/settings/leave-types", group: "Leave", permission: ["leave_type", "read"] },
