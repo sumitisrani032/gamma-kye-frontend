@@ -33,8 +33,9 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
 }
 
 function DaySelector({ selected, onChange }: { selected: WeekDayName[]; onChange: (days: WeekDayName[]) => void }) {
+  const days = selected || [];
   const toggle = (day: WeekDayName) => {
-    onChange(selected.includes(day) ? selected.filter((d) => d !== day) : [...selected, day]);
+    onChange(days.includes(day) ? days.filter((d) => d !== day) : [...days, day]);
   };
   return (
     <div className="space-y-1">
@@ -44,7 +45,7 @@ function DaySelector({ selected, onChange }: { selected: WeekDayName[]; onChange
         {WEEKDAYS.map((day) => (
           <button key={day} type="button" onClick={() => toggle(day)}
             className={`px-2.5 py-1 text-xs rounded-md border transition-colors capitalize ${
-              selected.includes(day) ? "bg-primary-600 text-white border-primary-600" : "border-border text-text-secondary hover:bg-surface-tertiary"
+              days.includes(day) ? "bg-primary-600 text-white border-primary-600" : "border-border text-text-secondary hover:bg-surface-tertiary"
             }`}
           >{day.slice(0, 3)}</button>
         ))}
