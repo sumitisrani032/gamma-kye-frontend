@@ -180,9 +180,8 @@ function WfhPolicyForm({ initial, onSubmit, onCancel }: {
 
 export function WfhPolicyList() {
   const { can } = useAuth();
-  const { policies, loading, error, formError, add, update, remove, clearFormErrors } = useWfhPolicies();
+  const { policies, selected, loading, error, formError, select, clearSelection, add, update, remove, clearFormErrors } = useWfhPolicies();
   const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState<WfhPolicy | null>(null);
 
   const handleAdd = useCallback(async (data: WfhPolicyFormData) => {
     const ok = await add(data);
@@ -191,11 +190,11 @@ export function WfhPolicyList() {
   }, [add]);
 
   const handleUpdate = useCallback(async (data: WfhPolicyFormData) => {
-    if (!editing) return false;
-    const ok = await update(editing.id, data);
-    if (ok) setEditing(null);
+    if (!selected) return false;
+    const ok = await update(selected.id, data);
+    if (ok) clearSelection();
     return ok;
-  }, [editing, update]);
+  }, [selected, update, clearSelection]);
 
   if (loading) {
     return <div className="flex items-center justify-center py-16"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" /></div>;
@@ -208,16 +207,16 @@ export function WfhPolicyList() {
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-text-secondary">{policies.length} polic{policies.length !== 1 ? "ies" : "y"}</p>
-        {!showForm && !editing && can("wfh_policy", "create") && (
+        {!showForm && !selected && can("wfh_policy", "create") && (
           <Button onClick={() => { clearFormErrors(); setShowForm(true); }}>Create Policy</Button>
         )}
       </div>
 
-      {(showForm || editing) && (
+      {(showForm || selected) && (
         <Card>
-          <CardHeader><h3 className="text-sm font-semibold text-text-primary">{editing ? "Edit Policy" : "New WFH Policy"}</h3></CardHeader>
+          <CardHeader><h3 className="text-sm font-semibold text-text-primary">{selected ? "Edit Policy" : "New WFH Policy"}</h3></CardHeader>
           <CardContent>
-            <WfhPolicyForm initial={editing || undefined} onSubmit={editing ? handleUpdate : handleAdd} onCancel={() => { setShowForm(false); setEditing(null); clearFormErrors(); }} />
+            <WfhPolicyForm initial={selected || undefined} onSubmit={selected ? handleUpdate : handleAdd} onCancel={() => { setShowForm(false); clearSelection(); clearFormErrors(); }} />
           </CardContent>
         </Card>
       )}
@@ -242,7 +241,7 @@ export function WfhPolicyList() {
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 {can("wfh_policy", "update") && (
-                  <Button size="sm" variant="secondary" onClick={() => { clearFormErrors(); setEditing(p); setShowForm(false); }}>Edit</Button>
+                  <Button size="sm" variant="secondary" onClick={async () => { clearFormErrors(); setShowForm(false); await select(p.id); }}>Edit</Button>
                 )}
                 {can("wfh_policy", "delete") && (
                   <Button size="sm" variant="ghost" className="text-danger" onClick={() => { if (confirm(`Delete "${p.name}"?`)) remove(p.id); }}>Delete</Button>
