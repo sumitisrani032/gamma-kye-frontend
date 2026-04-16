@@ -1,9 +1,13 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Button, Card, CardContent, CardHeader, Input, Select, Alert } from "@/components/ui";
 import { useAuth } from "@/contexts/auth-context";
 import { useWfhPolicies } from "../hooks/use-wfh-policies";
+import { listDepartments } from "@/services/department-service";
+import { listDesignations } from "@/services/designation-service";
+import { listGrades } from "@/services/grade-service";
+import { listLocations } from "@/services/location-service";
 import type { WfhPolicy, WfhPolicyFormData, WeekDayName } from "@/types";
 
 const APPLICABLE_OPTIONS = [
@@ -54,6 +58,64 @@ function DaySelector({ selected, onChange }: { selected: WeekDayName[]; onChange
   );
 }
 
+/* ─── Applicable Entity Selector ─── */
+
+function ApplicableSelector({ type, selected, onChange }: {
+  type: string; selected: string[]; onChange: (ids: string[]) => void;
+}) {
+  const [options, setOptions] = useState<{ id: string; name: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const ids = selected || [];
+
+  useEffect(() => {
+    setLoading(true);
+    const fetch = async () => {
+      try {
+        let items: { id: string; name: string }[] = [];
+        if (type === "department") {
+          const data = await listDepartments();
+          items = data.map((d) => ({ id: d.id, name: d.name }));
+        } else if (type === "designation") {
+          const data = await listDesignations();
+          items = data.map((d) => ({ id: d.id, name: d.name }));
+        } else if (type === "grade") {
+          const data = await listGrades();
+          items = data.map((d) => ({ id: d.id, name: d.name }));
+        } else if (type === "location") {
+          const data = await listLocations();
+          items = data.map((d) => ({ id: d.id, name: d.name }));
+        }
+        setOptions(items);
+      } catch {}
+      setLoading(false);
+    };
+    fetch();
+  }, [type]);
+
+  const toggle = (id: string) => {
+    onChange(ids.includes(id) ? ids.filter((i) => i !== id) : [...ids, id]);
+  };
+
+  if (loading) return <p className="text-xs text-text-muted py-2">Loading...</p>;
+
+  return (
+    <div className="space-y-1">
+      <p className="text-sm font-medium text-text-primary capitalize">Select {type}s</p>
+      <div className="max-h-40 overflow-y-auto rounded-lg border border-border p-2 space-y-1">
+        {options.length === 0 ? (
+          <p className="text-xs text-text-muted">No {type}s found</p>
+        ) : options.map((opt) => (
+          <label key={opt.id} className="flex items-center gap-2 text-xs text-text-primary cursor-pointer hover:bg-surface-tertiary rounded px-1 py-0.5">
+            <input type="checkbox" checked={ids.includes(opt.id)} onChange={() => toggle(opt.id)} className="h-3.5 w-3.5 rounded border-border text-primary-600 focus:ring-primary-500" />
+            {opt.name}
+          </label>
+        ))}
+      </div>
+      {ids.length > 0 && <p className="text-[10px] text-text-muted">{ids.length} selected</p>}
+    </div>
+  );
+}
+
 /* ─── Form ─── */
 
 function WfhPolicyForm({ initial, onSubmit, onCancel }: {
@@ -93,7 +155,7 @@ function WfhPolicyForm({ initial, onSubmit, onCancel }: {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Select label="Applicable To" name="applicable_to" value={form.applicable_to} onChange={(e) => { set("applicable_to", e.target.value); if (e.target.value === "all") set("applicable_ids", []); }} options={APPLICABLE_OPTIONS} />
         {form.applicable_to !== "all" && (
-          <Input label={`${form.applicable_to} IDs`} value={(form.applicable_ids || []).join(", ")} onChange={(e) => set("applicable_ids", e.target.value.split(",").map((s) => s.trim()).filter(Boolean))} placeholder="Comma-separated UUIDs" />
+          <ApplicableSelector type={form.applicable_to} selected={form.applicable_ids || []} onChange={(ids) => set("applicable_ids", ids)} />
         )}
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
