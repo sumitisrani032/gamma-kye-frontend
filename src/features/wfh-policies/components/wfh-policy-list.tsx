@@ -92,7 +92,7 @@ function WfhPolicyForm({ initial, onSubmit, onCancel }: {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Select label="Applicable To" name="applicable_to" value={form.applicable_to} onChange={(e) => { set("applicable_to", e.target.value); if (e.target.value === "all") set("applicable_ids", []); }} options={APPLICABLE_OPTIONS} />
         {form.applicable_to !== "all" && (
-          <Input label={`${form.applicable_to} IDs`} value={form.applicable_ids.join(", ")} onChange={(e) => set("applicable_ids", e.target.value.split(",").map((s) => s.trim()).filter(Boolean))} placeholder="Comma-separated UUIDs" />
+          <Input label={`${form.applicable_to} IDs`} value={(form.applicable_ids || []).join(", ")} onChange={(e) => set("applicable_ids", e.target.value.split(",").map((s) => s.trim()).filter(Boolean))} placeholder="Comma-separated UUIDs" />
         )}
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
