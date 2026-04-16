@@ -174,8 +174,7 @@ export function WfhPolicyList() {
                 </div>
                 <p className="text-xs text-text-muted mt-0.5">
                   Max {p.max_wfh_per_month}/month · Priority {p.priority}
-                  {p.allowed_days.length > 0 && ` · ${p.allowed_days.map((d) => d.slice(0, 3)).join(", ")}`}
-                  {p.allowed_days.length === 0 && " · Any day"}
+                  {p.allowed_days?.length > 0 ? ` · ${p.allowed_days.map((d) => d.slice(0, 3)).join(", ")}` : " · Any day"}
                 </p>
               </div>
               <div className="flex items-center gap-1 shrink-0">
