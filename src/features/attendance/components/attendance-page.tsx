@@ -1046,7 +1046,12 @@ export function AttendancePage() {
                 </button>
               ))}
             </div>
-            <MonthPills year={year} month={month} onSelect={handleMonthSelect} />
+            <div className="flex items-center gap-3">
+              <Button size="sm" variant="secondary" onClick={() => setWfhDate("")}>
+                Apply WFH
+              </Button>
+              <MonthPills year={year} month={month} onSelect={handleMonthSelect} />
+            </div>
           </div>
         </CardHeader>
 
