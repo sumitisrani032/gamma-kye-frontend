@@ -35,7 +35,9 @@ export function StepTimeline({ steps }: StepTimelineProps) {
                   ? "border-red-500 bg-red-50 text-red-700"
                   : step.status === "in_progress"
                     ? "border-blue-500 bg-blue-50 text-blue-700"
-                    : "border-border bg-surface text-text-muted"
+                    : step.status === "skipped"
+                      ? "border-border bg-surface-tertiary text-text-muted"
+                      : "border-border bg-surface text-text-muted"
             }`}
           >
             {step.step_order}
@@ -50,12 +52,16 @@ export function StepTimeline({ steps }: StepTimelineProps) {
               <StatusBadge status={step.status} />
             </div>
 
-            {step.assigned_to && (
+            {step.assigned_to ? (
               <p className="mt-0.5 text-xs text-text-secondary">
                 {step.assigned_to.first_name} {step.assigned_to.last_name} (
                 {step.assigned_to.email})
               </p>
-            )}
+            ) : step.status === "skipped" ? (
+              <p className="mt-0.5 text-xs text-text-muted italic">
+                Auto-skipped
+              </p>
+            ) : null}
 
             {step.comments && (
               <p className="mt-1 text-xs text-text-secondary italic">

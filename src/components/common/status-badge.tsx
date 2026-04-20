@@ -6,6 +6,7 @@ const STATUS_STYLES: Record<WorkflowStatus, string> = {
   approved: "bg-green-100 text-green-800",
   rejected: "bg-red-100 text-red-800",
   cancelled: "bg-surface-tertiary text-text-muted",
+  skipped: "bg-surface-tertiary text-text-muted",
 };
 
 interface StatusBadgeProps {

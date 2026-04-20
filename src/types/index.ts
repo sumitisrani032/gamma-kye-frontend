@@ -191,7 +191,8 @@ export type WorkflowStatus =
   | "in_progress"
   | "approved"
   | "rejected"
-  | "cancelled";
+  | "cancelled"
+  | "skipped";
 
 export interface UserSummary {
   id: string;
