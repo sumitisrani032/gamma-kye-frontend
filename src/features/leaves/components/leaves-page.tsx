@@ -31,6 +31,13 @@ const STATUS_STYLES: Record<string, string> = {
 const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+// Back-dated leave is only allowed for sick/maternity/paternity (backend returns 422 otherwise).
+const BACKDATE_ALLOWED_CODES = ["SL", "ML", "PL"];
+function todayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 /* ─── Helpers ─── */
 
 function formatDate(iso: string): string {
@@ -330,9 +337,10 @@ function BalanceCard({ balance, computedConsumed }: { balance: LeaveBalance; com
   const available = parseFloat(balance.balance) || 0;
   // Use the higher of API used vs computed from requests
   const consumed = Math.max(parseFloat(balance.used) || 0, computedConsumed);
+  const pending = parseFloat(balance.pending || "0") || 0;
   const entitled = parseFloat(balance.entitled) || 0;
   const accrued = parseFloat(balance.accrued) || 0;
-  const total = Math.max(entitled, accrued, available + consumed, 1);
+  const total = Math.max(entitled, accrued, available + consumed + pending, 1);
   const availPct = Math.min(100, (available / total) * 100);
   const color = balance.leave_type.color_code || "#6b7280";
 
@@ -373,6 +381,12 @@ function BalanceCard({ balance, computedConsumed }: { balance: LeaveBalance; com
               <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
               <span className="text-text-secondary">Available: <strong className="text-text-primary">{available} days</strong></span>
             </div>
+            {pending > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-yellow-400" />
+                <span className="text-text-secondary">Pending: <strong className="text-text-primary">{pending} days</strong></span>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-surface-tertiary" />
               <span className="text-text-secondary">Consumed: <strong className="text-text-primary">{consumed} days</strong></span>
@@ -390,6 +404,12 @@ function BalanceCard({ balance, computedConsumed }: { balance: LeaveBalance; com
             <p className="text-[10px] text-text-muted uppercase tracking-wider">Consumed</p>
             <p className="text-sm font-semibold text-text-primary">{consumed} {consumed === 1 ? "day" : "days"}</p>
           </div>
+          {pending > 0 && (
+            <div>
+              <p className="text-[10px] text-text-muted uppercase tracking-wider">Pending</p>
+              <p className="text-sm font-semibold text-text-primary">{pending} {pending === 1 ? "day" : "days"}</p>
+            </div>
+          )}
           {accrued > 0 && (
             <div>
               <p className="text-[10px] text-text-muted uppercase tracking-wider">Accrued so far</p>
@@ -569,6 +589,17 @@ function HistoryRow({ request, onCancel }: { request: LeaveRequest; onCancel: (i
     ? formatDate(request.start_date)
     : `${formatDate(request.start_date)} - ${formatDate(request.end_date)}`;
 
+  // Pending: always cancellable. Approved: only cancellable if it hasn't started yet.
+  const today = todayISO();
+  const isFutureDated = request.start_date > today;
+  const canCancel =
+    request.status === "pending" ||
+    (request.status === "approved" && isFutureDated);
+  const approvedCancelNotice =
+    request.status === "approved" && isFutureDated
+      ? "Cancelling this approved leave will refund your balance."
+      : "";
+
   const handleCancel = async () => {
     if (!cancelReason.trim()) return;
     setCancelling(true);
@@ -602,7 +633,7 @@ function HistoryRow({ request, onCancel }: { request: LeaveRequest; onCancel: (i
           {request.reason || "—"}
         </td>
         <td className="px-4 py-3">
-          {request.status === "pending" && (
+          {canCancel && (
             <Button size="sm" variant="ghost" className="text-danger" onClick={() => setShowCancel(!showCancel)}>Cancel</Button>
           )}
           {request.cancellation_reason && (
@@ -613,6 +644,9 @@ function HistoryRow({ request, onCancel }: { request: LeaveRequest; onCancel: (i
       {showCancel && (
         <tr>
           <td colSpan={6} className="px-4 pb-3">
+            {approvedCancelNotice && (
+              <p className="mb-2 text-xs text-text-secondary">{approvedCancelNotice}</p>
+            )}
             <div className="flex items-center gap-2">
               <Input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Reason for cancellation" className="flex-1" />
               <Button size="sm" variant="danger" loading={cancelling} onClick={handleCancel}>Confirm</Button>
@@ -708,6 +742,11 @@ function ApplyLeaveFormModal({ balances, onApply, formError, fieldErrors, onClea
   const isSingleDay = startDate && endDate && startDate === endDate;
   const fe = (field: string) => fieldErrors[field]?.join(", ");
 
+  // SL/ML/PL allow back-dating; all others must be today or later.
+  const selectedCode = balances.find((b) => b.leave_type.id === leaveTypeId)?.leave_type.code;
+  const allowBackdate = !!selectedCode && BACKDATE_ALLOWED_CODES.includes(selectedCode);
+  const minStart = allowBackdate ? undefined : todayISO();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!leaveTypeId || !startDate || !endDate || !reason.trim()) return;
@@ -733,8 +772,8 @@ function ApplyLeaveFormModal({ balances, onApply, formError, fieldErrors, onClea
           <form onSubmit={handleSubmit} className="space-y-4">
             <Select label="Leave Type" name="leave_type_id" value={leaveTypeId} onChange={(e) => setLeaveTypeId(e.target.value)} options={leaveTypeOptions} error={fe("leave_type_id")} required />
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Start Date" type="date" name="start_date" value={startDate} onChange={(e) => { setStartDate(e.target.value); if (!endDate) setEndDate(e.target.value); }} error={fe("start_date")} required />
-              <Input label="End Date" type="date" name="end_date" value={endDate} onChange={(e) => setEndDate(e.target.value)} error={fe("end_date")} required min={startDate} />
+              <Input label="Start Date" type="date" name="start_date" value={startDate} onChange={(e) => { setStartDate(e.target.value); if (!endDate) setEndDate(e.target.value); }} error={fe("start_date")} required min={minStart} />
+              <Input label="End Date" type="date" name="end_date" value={endDate} onChange={(e) => setEndDate(e.target.value)} error={fe("end_date")} required min={startDate || minStart} />
             </div>
             {isSingleDay ? (
               <Select label="Half Day" name="start_half" value={startHalf} onChange={(e) => { setStartHalf(e.target.value); setEndHalf(e.target.value); }} options={HALF_DAY_OPTIONS} />

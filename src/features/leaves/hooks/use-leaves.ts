@@ -84,6 +84,10 @@ export function useLeaves(): UseLeavesReturn {
     try {
       await cancelLeaveRequest(id, reason);
       await refresh();
+      // Cancelling a leave may unblock overlapping WFH requests — nudge attendance view to refetch.
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("wfh:invalidate"));
+      }
       return true;
     } catch (err) {
       const apiError = err as ApiError;

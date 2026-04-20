@@ -946,6 +946,12 @@ export interface LeaveBalance {
   used: string;
   carry_forwarded: string;
   adjusted: string;
+  /**
+   * Days tied up in pending requests — `balance` now subtracts these,
+   * so the UI can show a Used / Pending / Available breakdown.
+   * Optional because older tenants / other endpoints may omit it.
+   */
+  pending?: string;
   balance: string;
 }
 
