@@ -11,6 +11,8 @@ import type { RequestEntity } from "@/types";
 
 interface MyRequestsListProps {
   requests: RequestEntity[];
+  /** Called after a successful inline cancel so the parent list refetches. */
+  onRefresh?: () => Promise<void> | void;
 }
 
 function todayISO(): string {
@@ -51,7 +53,7 @@ async function runCancel(req: RequestEntity, reason: string): Promise<void> {
   ]);
 }
 
-function InlineCancel({ req }: { req: RequestEntity }) {
+function InlineCancel({ req, onRefresh }: { req: RequestEntity; onRefresh?: () => Promise<void> | void }) {
   const needsReason = req.type === "leave_request";
   const showWarning = req.status === "approved" && req.type === "leave_request";
   const [open, setOpen] = useState(false);
@@ -65,6 +67,9 @@ function InlineCancel({ req }: { req: RequestEntity }) {
     setError("");
     try {
       await runCancel(req, reason.trim());
+      // Fire a direct refresh so the list reflects the new status immediately,
+      // regardless of whether the invalidate event subscriber is mounted.
+      if (onRefresh) await onRefresh();
       setOpen(false);
     } catch (err) {
       const apiError = err as { error?: string };
@@ -113,7 +118,7 @@ function InlineCancel({ req }: { req: RequestEntity }) {
   );
 }
 
-export function MyRequestsList({ requests }: MyRequestsListProps) {
+export function MyRequestsList({ requests, onRefresh }: MyRequestsListProps) {
   if (requests.length === 0) {
     return (
       <div className="rounded-xl border border-border bg-surface px-6 py-12 text-center text-sm text-text-muted">
@@ -128,7 +133,7 @@ export function MyRequestsList({ requests }: MyRequestsListProps) {
         <RequestCard
           key={`${req.type}:${req.id}`}
           entity={req}
-          actions={canCancel(req) ? <InlineCancel req={req} /> : undefined}
+          actions={canCancel(req) ? <InlineCancel req={req} onRefresh={onRefresh} /> : undefined}
         />
       ))}
     </div>

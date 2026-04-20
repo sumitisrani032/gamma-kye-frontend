@@ -179,7 +179,7 @@ function ApprovalsContent() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
             </div>
           ) : isMyRequests ? (
-            <MyRequestsList requests={mine.requests} />
+            <MyRequestsList requests={mine.requests} onRefresh={mine.refresh} />
           ) : (
             <ApprovalList instances={approvals.instances} />
           )}

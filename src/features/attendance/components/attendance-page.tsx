@@ -690,7 +690,14 @@ function AttendanceLog({
   const regByDate = new Map<string, RegularizationSummary>();
   for (const r of regularizations) regByDate.set(r.date, r);
   const wfhByDate = new Map<string, WfhRequest>();
-  for (const w of wfhRequests) wfhByDate.set(w.date, w);
+  for (const w of wfhRequests) {
+    const existing = wfhByDate.get(w.date);
+    // Backend may return both the cancelled original and a re-submitted pending
+    // record for the same date. Prefer the active one so the row doesn't keep
+    // showing a stale "WFH pending" badge after a cancellation.
+    const existingActive = existing && (existing.status === "pending" || existing.status === "approved");
+    if (!existingActive) wfhByDate.set(w.date, w);
+  }
 
   // Ensure today is always in the list (even if not clocked in)
   const todayStr = new Date().toISOString().slice(0, 10);
