@@ -788,6 +788,8 @@ export interface DirectoryEmployee {
   department: string;
   location: string;
   profile_photo_url: string | null;
+  /** "office" | "wfh" | "hybrid" — shown as a badge on directory cards. */
+  work_mode?: WorkMode;
 }
 
 /** Returned by GET /manage/employees (list) */
@@ -803,6 +805,8 @@ export interface EmployeeListItem {
   department: { id: string; name: string } | null;
   employment_status: EmploymentStatus;
   profile_photo_url: string | null;
+  /** "office" | "wfh" | "hybrid" — optional, present when the serializer exposes it. */
+  work_mode?: WorkMode;
 }
 
 export interface EmployeeUserAccount {
@@ -835,6 +839,8 @@ export interface EmployeeDetail extends EmployeeListItem {
   notice_period_days: number;
   date_of_exit: string | null;
   exit_reason: string | null;
+  /** "office" | "wfh" | "hybrid" — exposed via EmployeeSerializer.profile_public. */
+  work_mode?: WorkMode;
   user_account: EmployeeUserAccount;
   created_at: string;
 }

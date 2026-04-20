@@ -71,6 +71,7 @@ function EmployeePublicInfo({ emp }: { emp: EmployeeDetail }) {
             <InfoRow label="Department" value={emp.department?.name} />
             <InfoRow label="Location" value={emp.location?.name} />
             <InfoRow label="Manager" value={emp.reporting_manager ? emp.reporting_manager.full_name : null} />
+            <InfoRow label="Work Mode" value={emp.work_mode ? emp.work_mode.charAt(0).toUpperCase() + emp.work_mode.slice(1) : null} />
           </dl>
         </CardContent>
       </Card>
@@ -151,6 +152,13 @@ const BLOOD_OPTIONS = [
   ...["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((b) => ({ value: b, label: b })),
 ];
 
+const WORK_MODE_OPTIONS = [
+  { value: "", label: "Not specified" },
+  { value: "office", label: "Office" },
+  { value: "wfh", label: "Work from home" },
+  { value: "hybrid", label: "Hybrid" },
+];
+
 function EditEmployeePanel({ emp, onSubmit, onCancel }: {
   emp: EmployeeDetail;
   onSubmit: (fields: Record<string, unknown>) => Promise<boolean>;
@@ -165,6 +173,7 @@ function EditEmployeePanel({ emp, onSubmit, onCancel }: {
     blood_group: emp.blood_group || "",
     nationality: emp.nationality || "",
     notice_period_days: emp.notice_period_days,
+    work_mode: emp.work_mode || "",
   });
   const [saving, setSaving] = useState(false);
 
@@ -196,6 +205,9 @@ function EditEmployeePanel({ emp, onSubmit, onCancel }: {
         <Select label="Blood Group" name="blood_group" value={form.blood_group} onChange={handleChange} options={BLOOD_OPTIONS} />
         <Input label="Nationality" name="nationality" value={form.nationality} onChange={handleChange} />
         <Input label="Notice Period (days)" name="notice_period_days" type="number" value={String(form.notice_period_days)} onChange={handleChange} min={0} />
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Select label="Work Mode" name="work_mode" value={form.work_mode} onChange={handleChange} options={WORK_MODE_OPTIONS} />
       </div>
       <div className="flex items-center gap-3 pt-2">
         <Button type="submit" size="sm" loading={saving}>Save Changes</Button>

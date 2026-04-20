@@ -43,7 +43,14 @@ export function DirectoryList() {
                 {emp.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-text-primary truncate">{emp.full_name}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-text-primary truncate">{emp.full_name}</p>
+                  {emp.work_mode && (
+                    <span className="inline-flex items-center rounded bg-surface-tertiary px-1.5 py-0.5 text-[9px] font-bold text-text-muted uppercase">
+                      {emp.work_mode === "wfh" ? "🏠 WFH" : emp.work_mode === "hybrid" ? "Hybrid" : "🏢 Office"}
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-text-muted truncate">{emp.designation} &middot; {emp.department}</p>
                 <p className="text-xs text-text-muted truncate">{emp.location}</p>
               </div>
