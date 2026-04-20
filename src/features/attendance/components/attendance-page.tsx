@@ -5,7 +5,7 @@ import { Button, Card, CardContent, CardHeader, Input, Alert } from "@/component
 import { useAttendance } from "../hooks/use-attendance";
 import { useRegularizations } from "../hooks/use-regularizations";
 import { requestWfh, listWfhRequests, cancelWfh, type WfhRequest } from "@/services/wfh-request-service";
-import type { AttendanceRecord, AttendanceState, AttendanceSummary, RegularizationSummary, Shift, ApiError } from "@/types";
+import type { AttendanceRecord, AttendanceState, AttendanceSummary, AttendanceWorkMode, AttendanceWorkModeSource, RegularizationSummary, Shift, ApiError } from "@/types";
 
 /* ─── Constants ─── */
 
@@ -19,6 +19,7 @@ const STATUS_STYLES: Record<string, string> = {
   on_leave: "bg-blue-100 text-blue-700",
   holiday: "bg-purple-100 text-purple-700",
   weekly_off: "bg-surface-tertiary text-text-muted",
+  comp_off: "bg-surface-tertiary text-text-muted",
 };
 
 const REG_STATUS_STYLES: Record<string, string> = {
@@ -27,6 +28,22 @@ const REG_STATUS_STYLES: Record<string, string> = {
   rejected: "bg-red-100 text-red-700",
   cancelled: "bg-surface-tertiary text-text-muted",
 };
+
+function WorkModeBadge({ mode, source }: { mode: AttendanceWorkMode; source?: AttendanceWorkModeSource }) {
+  const isWfh = mode === "wfh";
+  const sourceLabel = source === "request" ? "requested" : source === "manual" ? "manual" : "auto";
+  return (
+    <span
+      title={`${isWfh ? "Work from home" : "Office"} (${sourceLabel})`}
+      className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+        isWfh ? "bg-teal-100 text-teal-700" : "bg-surface-tertiary text-text-muted"
+      }`}
+    >
+      <span aria-hidden>{isWfh ? "🏠" : "🏢"}</span>
+      {isWfh ? "WFH" : "Office"}
+    </span>
+  );
+}
 
 type LogTab = "log" | "requests";
 
@@ -363,7 +380,7 @@ function parseHM(time: string): number {
 function AttendanceVisual({ record, shift, use24h }: { record: AttendanceRecord; shift: Shift | null; use24h: boolean }) {
   const [hover, setHover] = useState(false);
 
-  if (record.status === "weekly_off" || record.status === "holiday" || record.status === "on_leave") {
+  if (record.status === "weekly_off" || record.status === "holiday" || record.status === "on_leave" || record.status === "comp_off") {
     return null;
   }
 
@@ -495,7 +512,7 @@ function LogStatusIcon({ record, shift, regularization, wfhForDate, onRegularize
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const isOff = record.status === "weekly_off" || record.status === "holiday" || record.status === "on_leave";
+  const isOff = record.status === "weekly_off" || record.status === "holiday" || record.status === "on_leave" || record.status === "comp_off";
   const isAbsent = record.status === "absent" && !record.clock_in;
   const shiftHours = shift ? parseFloat(shift.full_day_hours) || 8 : 8;
   const effectiveHours = parseFloat(record.effective_hours || record.total_hours || "0");
@@ -700,6 +717,9 @@ function AttendanceLog({
                         <span className="inline-flex items-center rounded bg-blue-100 px-1.5 py-0.5 text-[9px] font-bold text-blue-700 uppercase">
                           Leave
                         </span>
+                      )}
+                      {!isOff && !isLeave && r.work_mode && (
+                        <WorkModeBadge mode={r.work_mode} source={r.work_mode_source} />
                       )}
                     </div>
                   </td>
@@ -954,7 +974,11 @@ export function AttendancePage() {
   const [wfhRequests, setWfhRequests] = useState<WfhRequest[]>([]);
 
   useEffect(() => {
-    listWfhRequests().then(setWfhRequests).catch(() => {});
+    const refetch = () => { listWfhRequests().then(setWfhRequests).catch(() => {}); };
+    refetch();
+    // Approving a leave may auto-cancel overlapping WFH requests (backend side-effect).
+    window.addEventListener("wfh:invalidate", refetch);
+    return () => window.removeEventListener("wfh:invalidate", refetch);
   }, []);
 
   const handleSubmitReg = useCallback(async (data: { attendance_record_id: string; requested_clock_in: string; requested_clock_out: string; reason: string }) => {

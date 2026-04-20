@@ -985,7 +985,7 @@ export interface MyProfileResponse {
 /*  Attendance                                                         */
 /* ------------------------------------------------------------------ */
 
-export type AttendanceStatus = "present" | "absent" | "half_day" | "on_leave" | "holiday" | "weekly_off";
+export type AttendanceStatus = "present" | "absent" | "half_day" | "on_leave" | "holiday" | "weekly_off" | "comp_off";
 
 export type AttendanceState = "not_started" | "working" | "on_break";
 
@@ -998,6 +998,9 @@ export interface AttendanceSession {
   source: string;
   open: boolean;
 }
+
+export type AttendanceWorkMode = "office" | "wfh";
+export type AttendanceWorkModeSource = "auto" | "request" | "manual";
 
 export interface AttendanceRecord {
   id: string;
@@ -1014,6 +1017,10 @@ export interface AttendanceRecord {
   overtime_minutes: number;
   is_regularized: boolean;
   remarks: string | null;
+  /** "office" | "wfh" — where the employee worked that day. */
+  work_mode?: AttendanceWorkMode;
+  /** How work_mode was decided: auto (default), request (approved WFH), manual (admin set). */
+  work_mode_source?: AttendanceWorkModeSource;
   sessions_count?: number;
   sessions?: AttendanceSession[];
 }

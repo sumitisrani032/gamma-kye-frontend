@@ -35,9 +35,12 @@ export function RegularizationPanel({ attendanceRecords }: RegularizationPanelPr
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Records eligible for regularization (have anomalies or missing data)
+  // Records eligible for regularization (have anomalies or missing data).
+  // Backend blocks days marked on_leave|holiday|weekly_off|comp_off, so we exclude them here.
+  const PROTECTED_STATUSES = ["on_leave", "holiday", "weekly_off", "comp_off"];
   const eligibleRecords = attendanceRecords.filter(
-    (r) => r.is_late || r.is_early_departure || !r.clock_in || !r.clock_out || r.status === "absent"
+    (r) => !PROTECTED_STATUSES.includes(r.status) &&
+      (r.is_late || r.is_early_departure || !r.clock_in || !r.clock_out || r.status === "absent")
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
