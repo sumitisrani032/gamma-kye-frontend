@@ -7,8 +7,9 @@ import { useRegularizations } from "../hooks/use-regularizations";
 import { requestWfh, listWfhRequests, cancelWfh, type WfhRequest } from "@/services/wfh-request-service";
 import { getMyWfhPolicy } from "@/services/wfh-policy-service";
 import { getMyProfile } from "@/services/my-profile-service";
+import { listLeaveRequests } from "@/services/leave-request-service";
 import { invalidateRequests, subscribeToInvalidate } from "@/lib/invalidate";
-import type { AttendanceRecord, AttendanceState, AttendanceSummary, AttendanceWorkMode, AttendanceWorkModeSource, RegularizationSummary, Shift, WfhPolicy, WorkMode, ApiError } from "@/types";
+import type { AttendanceRecord, AttendanceState, AttendanceSummary, AttendanceWorkMode, AttendanceWorkModeSource, LeaveRequest, RegularizationSummary, Shift, WfhPolicy, WorkMode, ApiError } from "@/types";
 
 /* ─── Constants ─── */
 
@@ -269,10 +270,12 @@ function TimingsCard({ today, shift, use24h }: { today: AttendanceRecord | null;
 /* ─── Actions Card (state-based) ─── */
 
 function ActionsCard({
-  state, today, clocking, use24h, onClockIn, onClockOut, onToggle24h,
+  state, today, todayLeave, clocking, use24h, onClockIn, onClockOut, onToggle24h,
 }: {
   state: AttendanceState;
   today: AttendanceRecord | null;
+  /** A pending or approved leave covering today, if any — blocks clock-in. */
+  todayLeave?: LeaveRequest;
   clocking: boolean;
   use24h: boolean;
   onClockIn: () => void;
@@ -289,13 +292,17 @@ function ActionsCard({
 
         {(() => {
           // Backend rejects clock-in on approved leave / holiday with 422.
-          // Disable the button up-front so we don't even let them try.
+          // Disable the button up-front so we don't even let them try. A
+          // pending leave for today is treated the same way — clocking in
+          // while the workflow is mid-flight creates conflicting state.
           const blockedStatus =
-            today?.status === "on_leave" ? "leave"
+            today?.status === "on_leave" || todayLeave?.status === "approved" ? "leave"
+            : todayLeave?.status === "pending" ? "leave_pending"
             : today?.status === "holiday" ? "holiday"
             : null;
           const blockedTitle =
             blockedStatus === "leave" ? "You're on leave today"
+            : blockedStatus === "leave_pending" ? "Leave pending for today — cancel it to clock in"
             : blockedStatus === "holiday" ? "Today is a holiday"
             : "";
           return (
@@ -537,18 +544,24 @@ function AttendanceVisual({ record, shift, use24h }: { record: AttendanceRecord;
 
 /* ─── Log Status Icon (action column) ─── */
 
-function LogStatusIcon({ record, shift, regularization, wfhForDate, onRegularize, onCancelRequest, onApplyWfh }: {
+function LogStatusIcon({ record, shift, regularization, wfhForDate, leaveForDate, onRegularize, onCancelRequest, onApplyWfh }: {
   record: AttendanceRecord;
   shift: Shift | null;
   regularization?: RegularizationSummary;
   wfhForDate?: WfhRequest;
+  leaveForDate?: LeaveRequest;
   onRegularize: () => void;
   onCancelRequest?: () => void;
   onApplyWfh?: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const isOff = record.status === "weekly_off" || record.status === "holiday" || record.status === "on_leave" || record.status === "comp_off";
+  // A pending or approved leave on this date blocks clocking in and the
+  // regularize/apply menu — backend rejects those flows with 422 once the
+  // leave is approved, and letting the user queue conflicting actions while
+  // a leave is pending creates workflow races.
+  const hasActiveLeave = !!leaveForDate && (leaveForDate.status === "pending" || leaveForDate.status === "approved");
+  const isOff = record.status === "weekly_off" || record.status === "holiday" || record.status === "on_leave" || record.status === "comp_off" || hasActiveLeave;
   const isAbsent = record.status === "absent" && !record.clock_in;
   const shiftHours = shift ? parseFloat(shift.full_day_hours) || 8 : 8;
   const effectiveHours = parseFloat(record.effective_hours || record.total_hours || "0");
@@ -672,12 +685,13 @@ function ThreeDotMenu({ items }: { items: { label: string; onClick: () => void }
 /* ─── Attendance Log Table ─── */
 
 function AttendanceLog({
-  records, regularizations, wfhRequests, use24h, regularizingId, shift,
+  records, regularizations, wfhRequests, leaveRequests, use24h, regularizingId, shift,
   onRegularize, onSubmitReg, onCancelReg, onCancelRequest, onApplyWfh,
 }: {
   records: AttendanceRecord[];
   regularizations: RegularizationSummary[];
   wfhRequests: WfhRequest[];
+  leaveRequests: LeaveRequest[];
   use24h: boolean;
   regularizingId: string | null;
   shift: Shift | null;
@@ -697,6 +711,26 @@ function AttendanceLog({
     // showing a stale "WFH pending" badge after a cancellation.
     const existingActive = existing && (existing.status === "pending" || existing.status === "approved");
     if (!existingActive) wfhByDate.set(w.date, w);
+  }
+
+  // Expand multi-day leaves into a per-date map so a pending/approved leave
+  // covering today suppresses clock-in and the regularize/apply menu —
+  // the backend already rejects clock-in on approved leave (422), and a
+  // pending leave that overlaps today shouldn't tempt the user into
+  // conflicting actions while the workflow runs.
+  const leaveByDate = new Map<string, LeaveRequest>();
+  for (const lr of leaveRequests) {
+    if (lr.status !== "pending" && lr.status !== "approved") continue;
+    const start = new Date(lr.start_date + "T00:00:00");
+    const end = new Date(lr.end_date + "T00:00:00");
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const existing = leaveByDate.get(iso);
+      // Prefer approved over pending so the badge reflects the stronger state.
+      if (!existing || (existing.status === "pending" && lr.status === "approved")) {
+        leaveByDate.set(iso, lr);
+      }
+    }
   }
 
   // Render one row per day from the month start through today — never
@@ -768,8 +802,12 @@ function AttendanceLog({
             const date = new Date(r.date);
             const dayName = date.toLocaleDateString([], { weekday: "short" });
             const dateStr = date.toLocaleDateString([], { day: "2-digit", month: "short" });
+            const leave = leaveByDate.get(r.date);
             const isOff = r.status === "weekly_off" || r.status === "holiday";
-            const isLeave = r.status === "on_leave";
+            // Treat any pending/approved leave for the date as a leave day for
+            // the log UI, even if the backend attendance record hasn't been
+            // updated yet (pending workflow or eventual consistency).
+            const isLeave = r.status === "on_leave" || !!leave;
             const reg = regByDate.get(r.date);
             const hasAnomaly = r.is_late || r.is_early_departure || r.status === "absent" || !r.clock_in || !r.clock_out;
             const canRegularize = hasAnomaly && !r.is_regularized && (!reg || reg.status === "cancelled" || reg.status === "rejected");
@@ -788,8 +826,16 @@ function AttendanceLog({
                         </span>
                       )}
                       {isLeave && (
-                        <span className="inline-flex items-center rounded bg-blue-100 px-1.5 py-0.5 text-[9px] font-bold text-blue-700 uppercase">
-                          Leave
+                        <span
+                          className={`inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+                            leave && leave.status === "pending"
+                              ? "bg-yellow-100 text-yellow-700"
+                              : "bg-blue-100 text-blue-700"
+                          }`}
+                          title={leave?.reason || undefined}
+                        >
+                          {leave?.leave_type?.code ? `${leave.leave_type.code} ` : ""}
+                          {leave?.status === "pending" ? "Leave pending" : "On Leave"}
                         </span>
                       )}
                       {!isOff && !isLeave && r.work_mode && (
@@ -802,7 +848,11 @@ function AttendanceLog({
                   <td className="px-4 py-3">
                     {isOff || isLeave ? (
                       <span className="text-xs text-text-muted">
-                        {isOff ? `Full day ${r.status === "weekly_off" ? "Weekly-off" : "Holiday"}` : "On Leave"}
+                        {isOff
+                          ? `Full day ${r.status === "weekly_off" ? "Weekly-off" : "Holiday"}`
+                          : leave?.status === "pending"
+                            ? `Leave pending approval${leave.leave_type?.name ? ` · ${leave.leave_type.name}` : ""}`
+                            : "On Leave"}
                       </span>
                     ) : (
                       <AttendanceVisual record={r} shift={shift} use24h={use24h} />
@@ -850,6 +900,7 @@ function AttendanceLog({
                       shift={shift}
                       regularization={reg}
                       wfhForDate={wfhByDate.get(r.date)}
+                      leaveForDate={leave}
                       onRegularize={() => onRegularize(r.id)}
                       onCancelRequest={reg ? () => onCancelRequest(reg.id) : undefined}
                       onApplyWfh={onApplyWfh ? () => onApplyWfh(r.date) : undefined}
@@ -1095,6 +1146,8 @@ export function AttendancePage() {
   const [logTab, setLogTab] = useState<LogTab>("log");
   const [wfhDate, setWfhDate] = useState<string | null>(null);
   const [wfhRequests, setWfhRequests] = useState<WfhRequest[]>([]);
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+  const [myEmployeeId, setMyEmployeeId] = useState<string | null>(null);
   const [myWorkMode, setMyWorkMode] = useState<WorkMode | null>(null);
 
   useEffect(() => {
@@ -1110,10 +1163,37 @@ export function AttendancePage() {
   }, []);
 
   useEffect(() => {
-    getMyProfile().then((p) => setMyWorkMode(p.employee.work_mode ?? null)).catch(() => {});
+    const refetch = async () => {
+      try {
+        const all = await listLeaveRequests();
+        setLeaveRequests(myEmployeeId ? all.filter((lr) => lr.employee.id === myEmployeeId) : all);
+      } catch {}
+    };
+    refetch();
+    return subscribeToInvalidate(["my_requests", "leave_balances"], refetch);
+  }, [myEmployeeId]);
+
+  useEffect(() => {
+    getMyProfile()
+      .then((p) => {
+        setMyWorkMode(p.employee.work_mode ?? null);
+        setMyEmployeeId(p.employee.id);
+      })
+      .catch(() => {});
   }, []);
 
   const isPermanentWfh = myWorkMode === "wfh";
+
+  // Is there a pending or approved leave that covers today?
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayLeave = useMemo(() => {
+    return leaveRequests.find(
+      (lr) =>
+        (lr.status === "pending" || lr.status === "approved") &&
+        lr.start_date <= todayStr &&
+        lr.end_date >= todayStr,
+    );
+  }, [leaveRequests, todayStr]);
 
   const handleSubmitReg = useCallback(async (data: { attendance_record_id: string; requested_clock_in: string; requested_clock_out: string; reason: string }) => {
     const ok = await reg.submit(data);
@@ -1162,6 +1242,7 @@ export function AttendancePage() {
         <ActionsCard
           state={state}
           today={today}
+          todayLeave={todayLeave}
           clocking={clocking}
           use24h={use24h}
           onClockIn={handleClockIn}
@@ -1208,6 +1289,7 @@ export function AttendancePage() {
               records={records}
               regularizations={reg.regularizations}
               wfhRequests={wfhRequests}
+              leaveRequests={leaveRequests}
               use24h={use24h}
               regularizingId={regularizingId}
               shift={shift}
