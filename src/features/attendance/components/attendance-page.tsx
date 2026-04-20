@@ -284,20 +284,53 @@ function ActionsCard({
       <CardContent className="space-y-4">
         <LiveClock use24h={use24h} />
 
-        <div className="flex flex-col gap-2">
-          {state === "not_started" && (
-            <Button onClick={onClockIn} loading={clocking} className="w-full">Clock In</Button>
-          )}
-          {state === "working" && (
-            <Button onClick={onClockOut} loading={clocking} variant="secondary" className="w-full">Clock Out</Button>
-          )}
-          {state === "on_break" && (
-            <>
-              <Button onClick={onClockIn} loading={clocking} className="w-full">Resume Work</Button>
-              <p className="text-xs text-text-muted text-center">On break · {today?.sessions_count || 0} session{(today?.sessions_count || 0) !== 1 ? "s" : ""} today</p>
-            </>
-          )}
-        </div>
+        {(() => {
+          // Backend rejects clock-in on approved leave / holiday with 422.
+          // Disable the button up-front so we don't even let them try.
+          const blockedStatus =
+            today?.status === "on_leave" ? "leave"
+            : today?.status === "holiday" ? "holiday"
+            : null;
+          const blockedTitle =
+            blockedStatus === "leave" ? "You're on leave today"
+            : blockedStatus === "holiday" ? "Today is a holiday"
+            : "";
+          return (
+            <div className="flex flex-col gap-2">
+              {state === "not_started" && (
+                <Button
+                  onClick={onClockIn}
+                  loading={clocking}
+                  disabled={!!blockedStatus}
+                  title={blockedTitle}
+                  className="w-full"
+                >
+                  Clock In
+                </Button>
+              )}
+              {state === "working" && (
+                <Button onClick={onClockOut} loading={clocking} variant="secondary" className="w-full">Clock Out</Button>
+              )}
+              {state === "on_break" && (
+                <>
+                  <Button
+                    onClick={onClockIn}
+                    loading={clocking}
+                    disabled={!!blockedStatus}
+                    title={blockedTitle}
+                    className="w-full"
+                  >
+                    Resume Work
+                  </Button>
+                  <p className="text-xs text-text-muted text-center">On break · {today?.sessions_count || 0} session{(today?.sessions_count || 0) !== 1 ? "s" : ""} today</p>
+                </>
+              )}
+              {blockedStatus && state === "not_started" && (
+                <p className="text-[10px] text-text-muted text-center">{blockedTitle}</p>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Session info */}
         {today && today.sessions && today.sessions.length > 0 && (
