@@ -36,7 +36,15 @@ export function useMyRequests(params?: MyRequestsParams): UseMyRequestsReturn {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params?.status, params?.type, params?.from, params?.to, params?.page, params?.per_page]);
+  }, [
+    params?.status,
+    params?.type,
+    params?.types?.join(","),
+    params?.from,
+    params?.to,
+    params?.page,
+    params?.per_page,
+  ]);
 
   useEffect(() => {
     refresh();

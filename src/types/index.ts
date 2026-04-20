@@ -1252,7 +1252,10 @@ export interface MyRequestsResponse {
 
 export interface MyRequestsParams extends PaginatedListParams {
   status?: RequestEntityStatus;
+  /** Single type — maps to `?type=<value>`. Use `types` for multi-select. */
   type?: RequestEntityType;
+  /** Multiple types — maps to repeated `?type[]=<value>` query params. */
+  types?: RequestEntityType[];
   from?: string;
   to?: string;
 }

@@ -14,6 +14,10 @@ export async function getMyRequests(
   const qs = new URLSearchParams();
   if (params?.status) qs.set("status", params.status);
   if (params?.type) qs.set("type", params.type);
+  // Multi-select uses Rails-style ?type[]=leave_request&type[]=wfh_request.
+  if (params?.types?.length) {
+    for (const t of params.types) qs.append("type[]", t);
+  }
   if (params?.from) qs.set("from", params.from);
   if (params?.to) qs.set("to", params.to);
   if (params?.page) qs.set("page", String(params.page));
