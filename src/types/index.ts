@@ -1193,6 +1193,59 @@ export interface WorkflowInstanceDetail extends WorkflowInstance {
 }
 
 /* ------------------------------------------------------------------ */
+/*  My Requests (unified view across leave / WFH / regularization)    */
+/* ------------------------------------------------------------------ */
+
+export type MyRequestType =
+  | "leave_request"
+  | "wfh_request"
+  | "attendance_regularization";
+
+export type MyRequestStatus = "pending" | "approved" | "rejected" | "cancelled";
+
+/** Normalized row returned by GET /api/v1/my_requests */
+export interface MyRequest {
+  id: string;
+  type: MyRequestType;
+  /** e.g. "3 days CL" | "Work From Home" | "Attendance Regularization" */
+  title: string;
+  /** Usually the reason; may be null. */
+  subtitle: string | null;
+  start_date: string;
+  end_date: string;
+  /** Pre-formatted label like "25 Apr – 27 Apr 2026". */
+  date_range_label: string;
+  number_of_days: number;
+  status: MyRequestStatus;
+  submitted_at: string;
+  approved_at: string | null;
+  cancelled_at: string | null;
+  /** Link target for drilling into the approval timeline. */
+  workflow_instance_id: string | null;
+  /** Type-specific extras; structure depends on `type`. */
+  meta: Record<string, unknown>;
+}
+
+export interface MyRequestsSummary {
+  total: number;
+  by_status: Partial<Record<MyRequestStatus, number>>;
+  by_type: Partial<Record<MyRequestType, number>>;
+}
+
+export interface MyRequestsResponse {
+  my_requests: MyRequest[];
+  summary: MyRequestsSummary;
+  pagination?: Pagination;
+}
+
+export interface MyRequestsParams extends PaginatedListParams {
+  status?: MyRequestStatus;
+  type?: MyRequestType;
+  from?: string;
+  to?: string;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Org Structure                                                      */
 /* ------------------------------------------------------------------ */
 
