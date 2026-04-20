@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button, Card, CardContent, CardHeader, Select, Input, Alert } from "@/components/ui";
 import { useLeaves } from "../hooks/use-leaves";
 import type { LeaveBalance, LeaveRequest, LeaveRequestFormData, HalfDay } from "@/types";
@@ -663,10 +663,18 @@ function HistoryRow({ request, onCancel }: { request: LeaveRequest; onCancel: (i
 
 export function LeavesPage() {
   const {
-    balances, requests, loading, error, formError, fieldErrors,
-    apply, cancel, clearFormErrors,
+    balances, requests, loading, error, formError, fieldErrors, successMessage,
+    apply, cancel, clearFormErrors, clearSuccess,
   } = useLeaves();
   const [showApplyForm, setShowApplyForm] = useState(false);
+
+  // Auto-dismiss the success banner after a short delay so the page doesn't
+  // carry stale "approved automatically" copy between actions.
+  useEffect(() => {
+    if (!successMessage) return;
+    const id = setTimeout(clearSuccess, 5000);
+    return () => clearTimeout(id);
+  }, [successMessage, clearSuccess]);
 
   if (loading) {
     return (
@@ -679,6 +687,7 @@ export function LeavesPage() {
   return (
     <div className="space-y-8">
       {error && <Alert variant="error">{error}</Alert>}
+      {successMessage && <Alert variant="success">{successMessage}</Alert>}
 
       {/* Top bar: Request Leave button */}
       <div className="flex items-center justify-between">

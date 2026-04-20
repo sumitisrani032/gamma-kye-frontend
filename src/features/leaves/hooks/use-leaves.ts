@@ -12,12 +12,15 @@ interface UseLeavesReturn {
   error: string;
   formError: string;
   fieldErrors: Record<string, string[]>;
+  /** Last successful apply — populated so the UI can show "submitted" vs "auto-approved". */
+  successMessage: string;
   statusFilter: string;
   setStatusFilter: (s: string) => void;
   refresh: () => Promise<void>;
   apply: (data: LeaveRequestFormData) => Promise<boolean>;
   cancel: (id: string, reason: string) => Promise<boolean>;
   clearFormErrors: () => void;
+  clearSuccess: () => void;
 }
 
 export function useLeaves(): UseLeavesReturn {
@@ -27,6 +30,7 @@ export function useLeaves(): UseLeavesReturn {
   const [error, setError] = useState("");
   const [formError, setFormError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const [successMessage, setSuccessMessage] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [myEmployeeId, setMyEmployeeId] = useState<string | null>(null);
   const [profileReady, setProfileReady] = useState(false);
@@ -35,6 +39,8 @@ export function useLeaves(): UseLeavesReturn {
     setFormError("");
     setFieldErrors({});
   }, []);
+
+  const clearSuccess = useCallback(() => setSuccessMessage(""), []);
 
   // Step 1: Resolve employee ID first — nothing renders until this completes
   useEffect(() => {
@@ -68,9 +74,17 @@ export function useLeaves(): UseLeavesReturn {
 
   const apply = useCallback(async (data: LeaveRequestFormData): Promise<boolean> => {
     clearFormErrors();
+    setSuccessMessage("");
     try {
-      await applyLeave(data);
+      // Backend auto-approves senior roles (e.g. Tenant Admin / CEO) when all
+      // workflow steps end up skipped — read the response status to know.
+      const created = await applyLeave(data);
       await refresh();
+      setSuccessMessage(
+        created.status === "approved"
+          ? "Leave approved automatically."
+          : "Leave request submitted for approval.",
+      );
       return true;
     } catch (err) {
       const apiError = err as ApiError;
@@ -96,5 +110,5 @@ export function useLeaves(): UseLeavesReturn {
     }
   }, [refresh]);
 
-  return { balances, requests, loading, error, formError, fieldErrors, statusFilter, setStatusFilter, refresh, apply, cancel, clearFormErrors };
+  return { balances, requests, loading, error, formError, fieldErrors, successMessage, statusFilter, setStatusFilter, refresh, apply, cancel, clearFormErrors, clearSuccess };
 }
