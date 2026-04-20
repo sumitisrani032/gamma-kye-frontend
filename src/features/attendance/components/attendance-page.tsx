@@ -699,12 +699,16 @@ function AttendanceLog({
     if (!existingActive) wfhByDate.set(w.date, w);
   }
 
-  // Ensure today is always in the list (even if not clocked in)
+  // Ensure today is always in the list (even if not clocked in), and never
+  // render future-dated rows — approved leave / pending WFH for upcoming
+  // days should not leak into the attendance log; those dates flip to real
+  // rows only once they arrive.
   const todayStr = new Date().toISOString().slice(0, 10);
   const now = new Date();
-  const isCurrentMonth = now.getFullYear() === new Date(records[0]?.date || todayStr).getFullYear()
-    && now.getMonth() === new Date(records[0]?.date || todayStr).getMonth();
-  const hasToday = records.some((r) => r.date === todayStr);
+  const pastOrToday = records.filter((r) => r.date <= todayStr);
+  const isCurrentMonth = now.getFullYear() === new Date(pastOrToday[0]?.date || todayStr).getFullYear()
+    && now.getMonth() === new Date(pastOrToday[0]?.date || todayStr).getMonth();
+  const hasToday = pastOrToday.some((r) => r.date === todayStr);
 
   const displayRecords = (!hasToday && isCurrentMonth) ? [
     {
@@ -717,8 +721,8 @@ function AttendanceLog({
       is_early_departure: false, overtime_minutes: 0,
       is_regularized: false, remarks: null,
     } as AttendanceRecord,
-    ...records,
-  ] : records;
+    ...pastOrToday,
+  ] : pastOrToday;
 
   return (
     <div className="overflow-x-auto">
