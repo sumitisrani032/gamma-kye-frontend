@@ -54,6 +54,11 @@ export function useApprovalDetail(id: string): UseApprovalDetailReturn {
         // Refetch the full detail to get updated status + step_instances
         const fresh = await getWorkflowInstance(id);
         setInstance(fresh);
+        // Backend auto-cancels overlapping WFH requests when a leave is approved —
+        // tell any open view (attendance page, etc.) to refetch its WFH list.
+        if (fresh.entity_type === "leave_request" && fresh.status === "approved" && typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("wfh:invalidate"));
+        }
       } catch (err) {
         const apiError = err as ApiError;
         setActionError(apiError.error || "Action failed. Please try again.");
