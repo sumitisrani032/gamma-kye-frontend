@@ -74,15 +74,30 @@ function DayTooltip({ day, shift, onAction, clocking }: {
       {day.wfh_status === "pending" && (
         <p className="mt-0.5 text-yellow-700">WFH request pending</p>
       )}
-      {day.actions.length > 0 && day.type !== "on_leave" && day.type !== "holiday" && day.type !== "weekly_off" && (
-        <div className="mt-1.5 flex flex-wrap gap-1">
-          {day.actions.includes("clock_in") && <Button size="sm" onClick={() => onAction("clock_in")} loading={clocking}>Clock In</Button>}
-          {day.actions.includes("clock_out") && <Button size="sm" variant="secondary" onClick={() => onAction("clock_out")} loading={clocking}>Clock Out</Button>}
-          {day.actions.includes("regularize") && <Button size="sm" variant="secondary" onClick={() => onAction("regularize")}>Regularize</Button>}
-          {day.actions.includes("apply_leave") && <Button size="sm" variant="ghost" onClick={() => onAction("apply_leave")}>Apply Leave</Button>}
-          {day.actions.includes("request_wfh") && <Button size="sm" variant="ghost" onClick={() => onAction("request_wfh")}>Request WFH</Button>}
-        </div>
-      )}
+      {(() => {
+        // Defensively hide apply/request actions when this day already has
+        // a request attached — backend usually strips them from `actions`,
+        // but if it doesn't (stale cache, race with a fresh submit), we
+        // should still not invite the user into a guaranteed-422 path.
+        const hasActiveWfh = day.wfh_status === "pending" || day.wfh_status === "approved";
+        const hasLeave = day.type === "on_leave";
+        const allow = new Set(day.actions);
+        if (hasActiveWfh || hasLeave) allow.delete("request_wfh");
+        if (hasLeave) allow.delete("apply_leave");
+
+        if (allow.size === 0 || day.type === "on_leave" || day.type === "holiday" || day.type === "weekly_off") {
+          return null;
+        }
+        return (
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {allow.has("clock_in") && <Button size="sm" onClick={() => onAction("clock_in")} loading={clocking}>Clock In</Button>}
+            {allow.has("clock_out") && <Button size="sm" variant="secondary" onClick={() => onAction("clock_out")} loading={clocking}>Clock Out</Button>}
+            {allow.has("regularize") && <Button size="sm" variant="secondary" onClick={() => onAction("regularize")}>Regularize</Button>}
+            {allow.has("apply_leave") && <Button size="sm" variant="ghost" onClick={() => onAction("apply_leave")}>Apply Leave</Button>}
+            {allow.has("request_wfh") && <Button size="sm" variant="ghost" onClick={() => onAction("request_wfh")}>Request WFH</Button>}
+          </div>
+        );
+      })()}
     </div>
   );
 }
