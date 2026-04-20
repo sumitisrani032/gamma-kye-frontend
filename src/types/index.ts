@@ -325,7 +325,8 @@ export interface AuditLog {
   changes_data: Record<string, [unknown, unknown]>;
   ip_address: string;
   user_agent: string;
-  user: UserSummary;
+  /** Null for system-generated entries (e.g. auto-skipped workflow steps). */
+  user: UserSummary | null;
   created_at: string;
 }
 

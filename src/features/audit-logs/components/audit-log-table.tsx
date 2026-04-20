@@ -79,7 +79,9 @@ export function AuditLogTable({
                   {formatDate(log.created_at)}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-text-primary">
-                  {log.user.first_name} {log.user.last_name}
+                  {log.user
+                    ? `${log.user.first_name} ${log.user.last_name}`
+                    : <span className="text-text-muted italic">System</span>}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
                   <span
