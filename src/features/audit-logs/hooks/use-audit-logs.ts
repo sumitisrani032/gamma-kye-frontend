@@ -32,8 +32,8 @@ export function useAuditLogs(): UseAuditLogsReturn {
     try {
       const data = await getAuditLogs({
         ...filters,
-        limit: PAGE_SIZE,
-        offset: (page - 1) * PAGE_SIZE,
+        page,
+        per_page: PAGE_SIZE,
       });
       setLogs(data.audit_logs);
       setTotal(data.total);

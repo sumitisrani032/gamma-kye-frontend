@@ -20,6 +20,9 @@ const ACTIONS = [
   { value: "create", label: "Create" },
   { value: "update", label: "Update" },
   { value: "delete", label: "Delete" },
+  { value: "approve_step", label: "Approve Step" },
+  { value: "reject_step", label: "Reject Step" },
+  { value: "cancel_workflow", label: "Cancel Workflow" },
 ];
 
 interface AuditLogFiltersProps {

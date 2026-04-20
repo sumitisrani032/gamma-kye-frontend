@@ -336,8 +336,8 @@ export interface AuditLogFilters {
   action_filter?: string;
   from?: string;
   to?: string;
-  limit?: number;
-  offset?: number;
+  page?: number;
+  per_page?: number;
 }
 
 /* ------------------------------------------------------------------ */
