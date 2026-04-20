@@ -263,6 +263,12 @@ export interface WorkflowInstance {
   created_at: string;
   completed_at: string | null;
   step_instances?: StepInstance[];
+  /**
+   * Denormalized request payload — shared shape between
+   * /workflow_instances?my_pending=true and /my_requests so the same card
+   * component can render both. Null if the underlying request was deleted.
+   */
+  entity: RequestEntity | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1193,20 +1199,21 @@ export interface WorkflowInstanceDetail extends WorkflowInstance {
 }
 
 /* ------------------------------------------------------------------ */
-/*  My Requests (unified view across leave / WFH / regularization)    */
+/*  Request Entity — shared card data shape for "My Requests" and the  */
+/*  approvals inbox. Returned inline by /my_requests and nested as      */
+/*  `workflow_instance.entity` on /workflow_instances.                  */
 /* ------------------------------------------------------------------ */
 
-export type MyRequestType =
+export type RequestEntityType =
   | "leave_request"
   | "wfh_request"
   | "attendance_regularization";
 
-export type MyRequestStatus = "pending" | "approved" | "rejected" | "cancelled";
+export type RequestEntityStatus = "pending" | "approved" | "rejected" | "cancelled";
 
-/** Normalized row returned by GET /api/v1/my_requests */
-export interface MyRequest {
+export interface RequestEntity {
   id: string;
-  type: MyRequestType;
+  type: RequestEntityType;
   /** e.g. "3 days CL" | "Work From Home" | "Attendance Regularization" */
   title: string;
   /** Usually the reason; may be null. */
@@ -1216,7 +1223,7 @@ export interface MyRequest {
   /** Pre-formatted label like "25 Apr – 27 Apr 2026". */
   date_range_label: string;
   number_of_days: number;
-  status: MyRequestStatus;
+  status: RequestEntityStatus;
   submitted_at: string;
   approved_at: string | null;
   cancelled_at: string | null;
@@ -1226,21 +1233,26 @@ export interface MyRequest {
   meta: Record<string, unknown>;
 }
 
+/** @deprecated — use RequestEntity. Kept as an alias for older call sites. */
+export type MyRequest = RequestEntity;
+export type MyRequestType = RequestEntityType;
+export type MyRequestStatus = RequestEntityStatus;
+
 export interface MyRequestsSummary {
   total: number;
-  by_status: Partial<Record<MyRequestStatus, number>>;
-  by_type: Partial<Record<MyRequestType, number>>;
+  by_status: Partial<Record<RequestEntityStatus, number>>;
+  by_type: Partial<Record<RequestEntityType, number>>;
 }
 
 export interface MyRequestsResponse {
-  my_requests: MyRequest[];
+  my_requests: RequestEntity[];
   summary: MyRequestsSummary;
   pagination?: Pagination;
 }
 
 export interface MyRequestsParams extends PaginatedListParams {
-  status?: MyRequestStatus;
-  type?: MyRequestType;
+  status?: RequestEntityStatus;
+  type?: RequestEntityType;
   from?: string;
   to?: string;
 }
