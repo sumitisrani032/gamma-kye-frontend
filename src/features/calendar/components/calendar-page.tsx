@@ -66,12 +66,21 @@ function DayTooltip({ day, shift, onAction, clocking }: {
       )}
 
       {day.holiday_type && <p className="mt-1 text-text-muted capitalize">{day.holiday_type}</p>}
+      {day.work_mode && (
+        <p className="mt-1 text-text-secondary">
+          {day.work_mode === "wfh" ? "🏠 Work from home" : "🏢 Office"}
+        </p>
+      )}
+      {day.wfh_status === "pending" && (
+        <p className="mt-0.5 text-yellow-700">WFH request pending</p>
+      )}
       {day.actions.length > 0 && day.type !== "on_leave" && day.type !== "holiday" && day.type !== "weekly_off" && (
         <div className="mt-1.5 flex flex-wrap gap-1">
           {day.actions.includes("clock_in") && <Button size="sm" onClick={() => onAction("clock_in")} loading={clocking}>Clock In</Button>}
           {day.actions.includes("clock_out") && <Button size="sm" variant="secondary" onClick={() => onAction("clock_out")} loading={clocking}>Clock Out</Button>}
           {day.actions.includes("regularize") && <Button size="sm" variant="secondary" onClick={() => onAction("regularize")}>Regularize</Button>}
           {day.actions.includes("apply_leave") && <Button size="sm" variant="ghost" onClick={() => onAction("apply_leave")}>Apply Leave</Button>}
+          {day.actions.includes("request_wfh") && <Button size="sm" variant="ghost" onClick={() => onAction("request_wfh")}>Request WFH</Button>}
         </div>
       )}
     </div>
@@ -99,6 +108,12 @@ function DayCell({ day, isToday, shift, onAction, clocking }: {
       >
         {dateNum}
         {day.is_late && <span className="absolute top-0.5 right-0.5 h-1 w-1 rounded-full bg-yellow-500" />}
+        {day.work_mode === "wfh" && (
+          <span className="absolute bottom-0.5 left-0.5 text-[9px] leading-none" aria-label="Work from home">🏠</span>
+        )}
+        {day.wfh_status === "pending" && (
+          <span className="absolute bottom-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-yellow-400 ring-1 ring-yellow-500" title="WFH pending" />
+        )}
       </button>
       {tip && <DayTooltip day={day} shift={shift} onAction={(a) => { onAction(day.date, a); setTip(false); }} clocking={clocking} />}
     </div>
@@ -465,6 +480,7 @@ export function CalendarPage() {
     else if (action === "clock_out") handleClockOut();
     else if (action === "apply_leave") window.location.href = `/leaves?date=${date}`;
     else if (action === "regularize") window.location.href = `/attendance?regularize=${date}`;
+    else if (action === "request_wfh") window.location.href = `/attendance?wfh=${date}`;
   };
 
   if (loading) {

@@ -21,7 +21,9 @@ export interface CalendarSummary {
 }
 
 export type CalendarDayType = "present" | "half_day" | "absent" | "on_leave" | "holiday" | "weekly_off" | "regularized" | "future";
-export type CalendarAction = "apply_leave" | "regularize" | "clock_in" | "clock_out";
+export type CalendarAction = "apply_leave" | "regularize" | "clock_in" | "clock_out" | "request_wfh";
+export type CalendarWorkMode = "office" | "wfh";
+export type CalendarWfhStatus = "pending" | "approved" | "rejected" | "cancelled";
 
 export interface CalendarDay {
   date: string;
@@ -39,6 +41,10 @@ export interface CalendarDay {
   leave_type_code?: string;
   color_code?: string;
   half?: string | null;
+  /** "office" | "wfh" — if the day's work location is resolved. */
+  work_mode?: CalendarWorkMode;
+  /** Set only on future dates that have an open WFH request (usually "pending"). */
+  wfh_status?: CalendarWfhStatus;
   actions: CalendarAction[];
 }
 
