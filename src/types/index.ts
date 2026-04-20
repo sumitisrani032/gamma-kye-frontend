@@ -91,6 +91,22 @@ export interface ApiError {
   errors?: Record<string, string[]>;
 }
 
+/**
+ * Shared pagination meta — returned alongside list payloads by endpoints
+ * that support `?page=` / `?per_page=`. Default per_page is 25, max 100.
+ */
+export interface Pagination {
+  page: number;
+  per_page: number;
+  total: number;
+  total_pages: number;
+}
+
+export interface PaginatedListParams {
+  page?: number;
+  per_page?: number;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Role Management                                                   */
 /* ------------------------------------------------------------------ */
