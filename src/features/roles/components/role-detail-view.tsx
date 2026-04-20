@@ -25,6 +25,7 @@ export function RoleDetailView({ id }: RoleDetailViewProps) {
 
   const [editName, setEditName] = useState<string | null>(null);
   const [editDesc, setEditDesc] = useState<string | null>(null);
+  const [editRank, setEditRank] = useState<number | null>(null);
 
   if (loading) {
     return (
@@ -43,10 +44,11 @@ export function RoleDetailView({ id }: RoleDetailViewProps) {
 
   const handleSaveInfo = async () => {
     if (editName === null) return;
-    const ok = await saveInfo(editName, editDesc || "");
+    const ok = await saveInfo(editName, editDesc || "", editRank ?? undefined);
     if (ok) {
       setEditName(null);
       setEditDesc(null);
+      setEditRank(null);
     }
   };
 
@@ -74,6 +76,11 @@ export function RoleDetailView({ id }: RoleDetailViewProps) {
               </span>
             )}
           </div>
+          {role.tier_label && (
+            <span className="inline-flex items-center rounded-full bg-primary-50 px-2 py-0.5 text-[10px] font-medium text-primary-700">
+              {role.tier_label} · {role.rank}
+            </span>
+          )}
           {!isSystem && !isEditingInfo && (
             <Button
               variant="ghost"
@@ -81,6 +88,7 @@ export function RoleDetailView({ id }: RoleDetailViewProps) {
               onClick={() => {
                 setEditName(role.name);
                 setEditDesc(role.description);
+                setEditRank(role.rank);
               }}
             >
               Edit
@@ -100,6 +108,21 @@ export function RoleDetailView({ id }: RoleDetailViewProps) {
               value={editDesc || ""}
               onChange={(e) => setEditDesc(e.target.value)}
             />
+            <div>
+              <label className="flex items-center justify-between text-sm font-medium text-text-primary mb-1">
+                <span>Rank (0–100)</span>
+                <span className="text-xs text-text-muted">{editRank ?? role.rank}</span>
+              </label>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={editRank ?? role.rank}
+                onChange={(e) => setEditRank(Number(e.target.value))}
+                className="w-full"
+              />
+            </div>
             <div className="flex gap-2">
               <Button size="sm" loading={saving} onClick={handleSaveInfo}>
                 Save
@@ -110,6 +133,7 @@ export function RoleDetailView({ id }: RoleDetailViewProps) {
                 onClick={() => {
                   setEditName(null);
                   setEditDesc(null);
+                  setEditRank(null);
                 }}
               >
                 Cancel

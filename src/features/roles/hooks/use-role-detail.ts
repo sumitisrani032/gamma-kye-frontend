@@ -17,7 +17,7 @@ interface UseRoleDetailReturn {
   loading: boolean;
   saving: boolean;
   error: string;
-  saveInfo: (name: string, description: string) => Promise<boolean>;
+  saveInfo: (name: string, description: string, rank?: number) => Promise<boolean>;
   savePermissions: () => Promise<boolean>;
 }
 
@@ -52,12 +52,12 @@ export function useRoleDetail(id: string): UseRoleDetailReturn {
   }, [id]);
 
   const saveInfo = useCallback(
-    async (name: string, description: string): Promise<boolean> => {
+    async (name: string, description: string, rank?: number): Promise<boolean> => {
       setSaving(true);
       setError("");
       try {
         const updated = await updateRole(id, {
-          role: { name, description },
+          role: rank !== undefined ? { name, description, rank } : { name, description },
         });
         setRole(updated);
         return true;

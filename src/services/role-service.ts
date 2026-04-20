@@ -1,5 +1,5 @@
 import { api } from "./api-client";
-import type { RoleSummary, RoleDetail, CreateRoleRequest } from "@/types";
+import type { RoleSummary, RoleDetail, CreateRoleRequest, RankTier, RoleTemplate } from "@/types";
 
 interface RoleListResponse {
   roles: RoleSummary[];
@@ -31,13 +31,23 @@ export async function createRole(
 
 export async function updateRole(
   id: string,
-  payload: { role: { name: string; description: string } }
+  payload: { role: { name: string; description: string; rank?: number } }
 ): Promise<RoleDetail> {
   const { role } = await api.put<RoleResponse>(
     `/api/v1/manage/roles/${id}`,
     payload
   );
   return role;
+}
+
+export async function getRoleRankGuide(): Promise<RankTier[]> {
+  const { tiers } = await api.get<{ tiers: RankTier[] }>("/api/v1/manage/roles/rank_guide");
+  return tiers;
+}
+
+export async function getRoleTemplates(): Promise<RoleTemplate[]> {
+  const { templates } = await api.get<{ templates: RoleTemplate[] }>("/api/v1/manage/roles/templates");
+  return templates;
 }
 
 export async function deleteRole(id: string): Promise<void> {

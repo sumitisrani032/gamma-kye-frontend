@@ -111,6 +111,10 @@ export interface RoleSummary {
   is_system_role: boolean;
   users_count: number;
   permissions_count: number;
+  /** Role seniority 0–100. Higher values mean more senior. */
+  rank: number;
+  /** Human-readable tier (e.g. "Senior Manager") derived from rank. */
+  tier_label: string;
   created_at: string;
 }
 
@@ -122,7 +126,27 @@ export interface CreateRoleRequest {
   role: {
     name: string;
     description: string;
+    /** 0–100. Required by the backend. */
+    rank: number;
   };
+  permission_ids: string[];
+}
+
+/** One entry per tier from GET /manage/roles/rank_guide */
+export interface RankTier {
+  min: number;
+  max: number;
+  label: string;
+  description?: string;
+}
+
+/** System-role preset from GET /manage/roles/templates */
+export interface RoleTemplate {
+  id: string;
+  name: string;
+  description: string;
+  rank: number;
+  tier_label: string;
   permission_ids: string[];
 }
 

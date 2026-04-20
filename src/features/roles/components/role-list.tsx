@@ -51,6 +51,11 @@ export function RoleList() {
                         System
                       </span>
                     )}
+                    {role.tier_label && (
+                      <span className="inline-flex items-center rounded-full bg-primary-50 px-2 py-0.5 text-[10px] font-medium text-primary-700">
+                        {role.tier_label} · {role.rank}
+                      </span>
+                    )}
                   </div>
                   <p className="mt-0.5 text-xs text-text-secondary">
                     {role.description}
