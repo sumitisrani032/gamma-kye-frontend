@@ -7,6 +7,7 @@ import {
   rejectWorkflow,
   cancelWorkflow,
 } from "@/services/workflow-service";
+import { invalidateRequests } from "@/lib/invalidate";
 import type { WorkflowInstanceDetail, ApiError } from "@/types";
 
 interface UseApprovalDetailReturn {
@@ -54,8 +55,18 @@ export function useApprovalDetail(id: string): UseApprovalDetailReturn {
         // Refetch the full detail to get updated status + step_instances
         const fresh = await getWorkflowInstance(id);
         setInstance(fresh);
+        // Any approval action can change downstream state — My Requests counts,
+        // calendar day types, attendance records, balances. Notify everyone.
+        invalidateRequests([
+          "workflow_instances",
+          "my_requests",
+          "calendar",
+          "attendance",
+          "leave_balances",
+          "wfh",
+        ]);
         // Backend auto-cancels overlapping WFH requests when a leave is approved —
-        // tell any open view (attendance page, etc.) to refetch its WFH list.
+        // tell any legacy consumer (attendance page listener, etc.) to refetch.
         if (fresh.entity_type === "leave_request" && fresh.status === "approved" && typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("wfh:invalidate"));
         }

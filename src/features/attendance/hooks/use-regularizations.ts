@@ -6,6 +6,7 @@ import {
   submitRegularization,
   cancelRegularization,
 } from "@/services/regularization-service";
+import { invalidateRequests, subscribeToInvalidate } from "@/lib/invalidate";
 import type { RegularizationSummary, RegularizationFormData, ApiError } from "@/types";
 
 interface UseRegularizationsReturn {
@@ -39,6 +40,8 @@ export function useRegularizations(): UseRegularizationsReturn {
 
   useEffect(() => { refresh(); }, [refresh]);
 
+  useEffect(() => subscribeToInvalidate("attendance", refresh), [refresh]);
+
   const submit = useCallback(async (data: RegularizationFormData): Promise<boolean> => {
     setFormError("");
     try {
@@ -46,6 +49,7 @@ export function useRegularizations(): UseRegularizationsReturn {
       // prepend it optimistically instead of paying for a full list refetch.
       const created = await submitRegularization(data);
       setRegularizations((prev) => [created, ...prev]);
+      invalidateRequests(["my_requests", "calendar", "attendance", "workflow_instances"]);
       return true;
     } catch (err) {
       const apiError = err as ApiError;
@@ -58,6 +62,7 @@ export function useRegularizations(): UseRegularizationsReturn {
     try {
       await cancelRegularization(id);
       await refresh();
+      invalidateRequests(["my_requests", "calendar", "attendance", "workflow_instances"]);
       return true;
     } catch (err) {
       const apiError = err as ApiError;

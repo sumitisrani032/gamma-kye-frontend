@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { getMyRequests } from "@/services/my-requests-service";
+import { subscribeToInvalidate } from "@/lib/invalidate";
 import type {
   MyRequest,
   MyRequestsParams,
@@ -40,6 +41,9 @@ export function useMyRequests(params?: MyRequestsParams): UseMyRequestsReturn {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // Refetch whenever any request-shaped action fires elsewhere in the app.
+  useEffect(() => subscribeToInvalidate("my_requests", refresh), [refresh]);
 
   return { requests, summary, loading, error, refresh };
 }

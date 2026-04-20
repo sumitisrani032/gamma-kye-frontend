@@ -5,6 +5,7 @@ import { clockIn, clockOut, getToday, getMonthlyRecords, getMonthlySummary } fro
 import { getMyProfile } from "@/services/my-profile-service";
 import { getEmployeeActiveShift } from "@/services/shift-assignment-service";
 import { listShifts } from "@/services/shift-service";
+import { invalidateRequests, subscribeToInvalidate } from "@/lib/invalidate";
 import type { AttendanceRecord, AttendanceState, AttendanceSummary, Shift, ApiError } from "@/types";
 
 interface UseAttendanceReturn {
@@ -72,6 +73,13 @@ export function useAttendance(): UseAttendanceReturn {
     Promise.all([loadToday(), loadMonthly(), loadShift()]).finally(() => setLoading(false));
   }, [loadToday, loadMonthly, loadShift]);
 
+  useEffect(() => {
+    return subscribeToInvalidate(["today", "attendance", "calendar"], () => {
+      loadToday();
+      loadMonthly();
+    });
+  }, [loadToday, loadMonthly]);
+
   const handleClockIn = useCallback(async () => {
     setError("");
     setClocking(true);
@@ -79,6 +87,7 @@ export function useAttendance(): UseAttendanceReturn {
       await clockIn("web");
       await loadToday();
       await loadMonthly();
+      invalidateRequests(["today", "attendance", "calendar"]);
     } catch (err) {
       setError((err as ApiError).error || "Failed to clock in.");
     } finally {
@@ -93,6 +102,7 @@ export function useAttendance(): UseAttendanceReturn {
       await clockOut();
       await loadToday();
       await loadMonthly();
+      invalidateRequests(["today", "attendance", "calendar"]);
     } catch (err) {
       setError((err as ApiError).error || "Failed to clock out.");
     } finally {

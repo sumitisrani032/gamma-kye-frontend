@@ -7,6 +7,7 @@ import { useRegularizations } from "../hooks/use-regularizations";
 import { requestWfh, listWfhRequests, cancelWfh, type WfhRequest } from "@/services/wfh-request-service";
 import { getMyWfhPolicy } from "@/services/wfh-policy-service";
 import { getMyProfile } from "@/services/my-profile-service";
+import { invalidateRequests, subscribeToInvalidate } from "@/lib/invalidate";
 import type { AttendanceRecord, AttendanceState, AttendanceSummary, AttendanceWorkMode, AttendanceWorkModeSource, RegularizationSummary, Shift, WfhPolicy, WorkMode, ApiError } from "@/types";
 
 /* ─── Constants ─── */
@@ -1000,6 +1001,7 @@ function WfhRequestForm({ prefillDate, onClose, onSuccess, wfhRequests }: {
     setWfhError("");
     try {
       await requestWfh(date, reason.trim());
+      invalidateRequests(["my_requests", "calendar", "attendance", "wfh", "workflow_instances"]);
       onSuccess();
       onClose();
     } catch (err) {
@@ -1062,7 +1064,11 @@ export function AttendancePage() {
     refetch();
     // Approving a leave may auto-cancel overlapping WFH requests (backend side-effect).
     window.addEventListener("wfh:invalidate", refetch);
-    return () => window.removeEventListener("wfh:invalidate", refetch);
+    const unsubscribe = subscribeToInvalidate("wfh", refetch);
+    return () => {
+      window.removeEventListener("wfh:invalidate", refetch);
+      unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -1183,7 +1189,13 @@ export function AttendancePage() {
             regularizations={reg.regularizations}
             wfhRequests={wfhRequests}
             onCancelReg={reg.cancel}
-            onCancelWfh={async (id) => { try { await cancelWfh(id); setWfhRequests((prev) => prev.filter((w) => w.id !== id)); } catch {} }}
+            onCancelWfh={async (id) => {
+              try {
+                await cancelWfh(id);
+                setWfhRequests((prev) => prev.filter((w) => w.id !== id));
+                invalidateRequests(["my_requests", "calendar", "attendance", "wfh", "workflow_instances"]);
+              } catch {}
+            }}
             use24h={use24h}
           />
         )}

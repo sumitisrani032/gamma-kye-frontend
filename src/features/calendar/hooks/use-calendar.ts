@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { getMonthlyCalendar, getYearHolidays } from "@/services/calendar-service";
 import { clockIn, clockOut } from "@/services/attendance-service";
+import { invalidateRequests, subscribeToInvalidate } from "@/lib/invalidate";
 import type { ApiError } from "@/types";
 import type { MonthlyCalendar, YearHoliday } from "@/services/calendar-service";
 
@@ -54,6 +55,7 @@ export function useCalendar(): UseCalendarReturn {
 
   useEffect(() => { refresh(); }, [refresh]);
   useEffect(() => { loadHolidays(); }, [loadHolidays]);
+  useEffect(() => subscribeToInvalidate("calendar", refresh), [refresh]);
 
   const prevMonth = useCallback(() => {
     if (month === 1) { setMonth(12); setYear((y) => y - 1); }
@@ -67,14 +69,22 @@ export function useCalendar(): UseCalendarReturn {
 
   const handleClockIn = useCallback(async () => {
     setClocking(true);
-    try { await clockIn("web"); await refresh(); }
+    try {
+      await clockIn("web");
+      await refresh();
+      invalidateRequests(["today", "attendance"]);
+    }
     catch (err) { setError((err as ApiError).error || "Failed to clock in."); }
     finally { setClocking(false); }
   }, [refresh]);
 
   const handleClockOut = useCallback(async () => {
     setClocking(true);
-    try { await clockOut(); await refresh(); }
+    try {
+      await clockOut();
+      await refresh();
+      invalidateRequests(["today", "attendance"]);
+    }
     catch (err) { setError((err as ApiError).error || "Failed to clock out."); }
     finally { setClocking(false); }
   }, [refresh]);

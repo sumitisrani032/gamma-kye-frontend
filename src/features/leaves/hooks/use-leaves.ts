@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { getLeaveBalances, listLeaveRequests, applyLeave, cancelLeaveRequest } from "@/services/leave-request-service";
 import { getMyProfile } from "@/services/my-profile-service";
+import { invalidateRequests, subscribeToInvalidate } from "@/lib/invalidate";
 import type { LeaveBalance, LeaveRequest, LeaveRequestFormData, ApiError } from "@/types";
 
 interface UseLeavesReturn {
@@ -72,6 +73,9 @@ export function useLeaves(): UseLeavesReturn {
 
   useEffect(() => { refresh(); }, [refresh]);
 
+  // Keep balances + requests fresh when other parts of the app mutate state.
+  useEffect(() => subscribeToInvalidate(["my_requests", "leave_balances"], refresh), [refresh]);
+
   const apply = useCallback(async (data: LeaveRequestFormData): Promise<boolean> => {
     clearFormErrors();
     setSuccessMessage("");
@@ -85,6 +89,8 @@ export function useLeaves(): UseLeavesReturn {
           ? "Leave approved automatically."
           : "Leave request submitted for approval.",
       );
+      // Notify calendar, attendance, and My Requests views.
+      invalidateRequests(["my_requests", "calendar", "attendance", "leave_balances", "workflow_instances"]);
       return true;
     } catch (err) {
       const apiError = err as ApiError;
@@ -98,8 +104,11 @@ export function useLeaves(): UseLeavesReturn {
     try {
       await cancelLeaveRequest(id, reason);
       await refresh();
-      // Cancelling a leave may unblock overlapping WFH requests — nudge attendance view to refetch.
+      // Cancelling a leave may unblock overlapping WFH requests and frees up the
+      // balance — notify every view that cares about request state.
+      invalidateRequests(["my_requests", "calendar", "attendance", "leave_balances", "wfh", "workflow_instances"]);
       if (typeof window !== "undefined") {
+        // Legacy listener for consumers that haven't migrated to the new channel.
         window.dispatchEvent(new CustomEvent("wfh:invalidate"));
       }
       return true;

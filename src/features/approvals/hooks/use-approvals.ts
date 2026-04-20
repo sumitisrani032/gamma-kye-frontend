@@ -5,6 +5,7 @@ import {
   getWorkflowInstances,
   type WorkflowInstanceListParams,
 } from "@/services/workflow-service";
+import { subscribeToInvalidate } from "@/lib/invalidate";
 import type { WorkflowInstance } from "@/types";
 
 interface UseApprovalsReturn {
@@ -37,6 +38,8 @@ export function useApprovals(
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => subscribeToInvalidate("workflow_instances", refresh), [refresh]);
 
   return { instances, loading, error, refresh };
 }
