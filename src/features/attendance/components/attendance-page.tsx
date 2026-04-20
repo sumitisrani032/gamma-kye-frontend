@@ -699,30 +699,57 @@ function AttendanceLog({
     if (!existingActive) wfhByDate.set(w.date, w);
   }
 
-  // Ensure today is always in the list (even if not clocked in), and never
-  // render future-dated rows — approved leave / pending WFH for upcoming
-  // days should not leak into the attendance log; those dates flip to real
-  // rows only once they arrive.
+  // Render one row per day from the month start through today — never
+  // future dates. Days the backend didn't return a record for (the user
+  // didn't clock in and no leave/holiday applied) get an "absent" placeholder
+  // so the user can still regularize, apply leave, or apply WFH retroactively.
   const todayStr = new Date().toISOString().slice(0, 10);
-  const now = new Date();
   const pastOrToday = records.filter((r) => r.date <= todayStr);
-  const isCurrentMonth = now.getFullYear() === new Date(pastOrToday[0]?.date || todayStr).getFullYear()
-    && now.getMonth() === new Date(pastOrToday[0]?.date || todayStr).getMonth();
-  const hasToday = pastOrToday.some((r) => r.date === todayStr);
+  const byDate = new Map<string, AttendanceRecord>();
+  for (const r of pastOrToday) byDate.set(r.date, r);
 
-  const displayRecords = (!hasToday && isCurrentMonth) ? [
-    {
-      id: `today-placeholder-${todayStr}`,
-      date: todayStr,
-      status: "absent" as const,
-      clock_in: null, clock_out: null,
-      total_hours: null, effective_hours: null,
-      source: "", is_late: false, late_minutes: 0,
-      is_early_departure: false, overtime_minutes: 0,
-      is_regularized: false, remarks: null,
-    } as AttendanceRecord,
-    ...pastOrToday,
-  ] : pastOrToday;
+  // Anchor the iteration to whichever month the existing records belong to
+  // (the user may be viewing a prior month). If there are no records yet,
+  // fall back to the current month.
+  const anchorDate = pastOrToday[0]?.date ?? todayStr;
+  const anchor = new Date(anchorDate + "T00:00:00");
+  const monthStart = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  const now = new Date();
+  const isCurrentMonth =
+    monthStart.getFullYear() === now.getFullYear() &&
+    monthStart.getMonth() === now.getMonth();
+  const lastDay = isCurrentMonth
+    ? new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    : new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
+
+  const makePlaceholder = (iso: string): AttendanceRecord => ({
+    id: `placeholder-${iso}`,
+    date: iso,
+    status: "absent",
+    clock_in: null,
+    clock_out: null,
+    total_hours: null,
+    effective_hours: null,
+    source: "",
+    is_late: false,
+    late_minutes: 0,
+    is_early_departure: false,
+    overtime_minutes: 0,
+    is_regularized: false,
+    remarks: null,
+  });
+
+  const displayRecords: AttendanceRecord[] = [];
+  for (
+    const cursor = new Date(monthStart);
+    cursor <= lastDay;
+    cursor.setDate(cursor.getDate() + 1)
+  ) {
+    const iso = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
+    displayRecords.push(byDate.get(iso) ?? makePlaceholder(iso));
+  }
+  // Newest day first.
+  displayRecords.reverse();
 
   return (
     <div className="overflow-x-auto">
