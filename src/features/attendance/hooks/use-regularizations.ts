@@ -42,15 +42,17 @@ export function useRegularizations(): UseRegularizationsReturn {
   const submit = useCallback(async (data: RegularizationFormData): Promise<boolean> => {
     setFormError("");
     try {
-      await submitRegularization(data);
-      await refresh();
+      // Backend now returns the full serialized regularization, so we can
+      // prepend it optimistically instead of paying for a full list refetch.
+      const created = await submitRegularization(data);
+      setRegularizations((prev) => [created, ...prev]);
       return true;
     } catch (err) {
       const apiError = err as ApiError;
       setFormError(apiError.error || "Failed to submit regularization.");
       return false;
     }
-  }, [refresh]);
+  }, []);
 
   const cancel = useCallback(async (id: string): Promise<boolean> => {
     try {
