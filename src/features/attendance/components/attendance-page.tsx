@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { Button, Card, CardContent, CardHeader, Input, Alert } from "@/components/ui";
 import { useAttendance } from "../hooks/use-attendance";
 import { useRegularizations } from "../hooks/use-regularizations";
 import { requestWfh, listWfhRequests, cancelWfh, type WfhRequest } from "@/services/wfh-request-service";
-import type { AttendanceRecord, AttendanceState, AttendanceSummary, AttendanceWorkMode, AttendanceWorkModeSource, RegularizationSummary, Shift, ApiError } from "@/types";
+import { getMyWfhPolicy } from "@/services/wfh-policy-service";
+import { getMyProfile } from "@/services/my-profile-service";
+import type { AttendanceRecord, AttendanceState, AttendanceSummary, AttendanceWorkMode, AttendanceWorkModeSource, RegularizationSummary, Shift, WfhPolicy, WorkMode, ApiError } from "@/types";
 
 /* ─── Constants ─── */
 
@@ -942,13 +944,54 @@ import React from "react";
 
 /* ─── WFH Request Form ─── */
 
-function WfhRequestForm({ prefillDate, onClose, onSuccess }: {
-  prefillDate?: string; onClose: () => void; onSuccess: () => void;
+function WfhPolicyBox({ policy, usedThisMonth }: { policy: WfhPolicy; usedThisMonth: number }) {
+  return (
+    <div className="mb-3 rounded-lg border border-border bg-surface-secondary px-3 py-2 text-xs">
+      <p className="font-semibold text-text-primary mb-1">Policy: {policy.name}</p>
+      <ul className="space-y-0.5 text-text-secondary">
+        <li>▫︎ Max {policy.max_wfh_per_month} WFH {policy.max_wfh_per_month === 1 ? "day" : "days"} / month (you&apos;ve used {usedThisMonth})</li>
+        <li>▫︎ {policy.requires_approval ? "Requires manager approval" : "Auto-approved"}</li>
+        <li>▫︎ Apply at least {policy.min_days_advance} {policy.min_days_advance === 1 ? "day" : "days"} in advance</li>
+        {policy.allowed_days.length > 0 && policy.allowed_days.length < 7 && (
+          <li>▫︎ Allowed on: {policy.allowed_days.map((d) => d.slice(0, 3)).join(", ")}</li>
+        )}
+      </ul>
+    </div>
+  );
+}
+
+function WfhRequestForm({ prefillDate, onClose, onSuccess, wfhRequests }: {
+  prefillDate?: string; onClose: () => void; onSuccess: () => void; wfhRequests: WfhRequest[];
 }) {
   const [date, setDate] = useState(prefillDate || "");
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [wfhError, setWfhError] = useState("");
+  const [policy, setPolicy] = useState<WfhPolicy | null>(null);
+  const [policyMessage, setPolicyMessage] = useState<string>("");
+  const [policyLoading, setPolicyLoading] = useState(true);
+
+  useEffect(() => {
+    getMyWfhPolicy()
+      .then((p) => setPolicy(p))
+      .catch((err) => {
+        // Backend returns { wfh_policy: null, message: "…" } when none applies.
+        const e = err as ApiError & { message?: string };
+        setPolicyMessage(e.error || e.message || "No WFH policy applies to you.");
+      })
+      .finally(() => setPolicyLoading(false));
+  }, []);
+
+  const usedThisMonth = useMemo(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    return wfhRequests.filter((w) => {
+      if (w.status !== "approved" && w.status !== "pending") return false;
+      const d = new Date(w.date + "T00:00:00");
+      return d.getFullYear() === y && d.getMonth() === m;
+    }).length;
+  }, [wfhRequests]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -966,6 +1009,9 @@ function WfhRequestForm({ prefillDate, onClose, onSuccess }: {
     }
   };
 
+  const minAdvance = policy?.min_days_advance ?? 0;
+  const minDate = new Date(Date.now() + minAdvance * 86400000).toISOString().slice(0, 10);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <Card className="w-full max-w-sm mx-4 shadow-xl">
@@ -976,12 +1022,16 @@ function WfhRequestForm({ prefillDate, onClose, onSuccess }: {
           </div>
         </CardHeader>
         <CardContent>
+          {!policyLoading && policy && <WfhPolicyBox policy={policy} usedThisMonth={usedThisMonth} />}
+          {!policyLoading && !policy && policyMessage && (
+            <Alert variant="warning" className="mb-3">{policyMessage}</Alert>
+          )}
           {wfhError && <Alert variant="error" className="mb-3">{wfhError}</Alert>}
           <form onSubmit={handleSubmit} className="space-y-3">
-            <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required min={new Date().toISOString().slice(0, 10)} />
+            <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required min={minDate} />
             <Input label="Reason" value={reason} onChange={(e) => setReason(e.target.value)} required placeholder="Why do you need WFH?" />
             <div className="flex gap-2 pt-1">
-              <Button type="submit" loading={submitting}>Request WFH</Button>
+              <Button type="submit" loading={submitting} disabled={!policy && !policyLoading}>Request WFH</Button>
               <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
             </div>
           </form>
@@ -1005,6 +1055,7 @@ export function AttendancePage() {
   const [logTab, setLogTab] = useState<LogTab>("log");
   const [wfhDate, setWfhDate] = useState<string | null>(null);
   const [wfhRequests, setWfhRequests] = useState<WfhRequest[]>([]);
+  const [myWorkMode, setMyWorkMode] = useState<WorkMode | null>(null);
 
   useEffect(() => {
     const refetch = () => { listWfhRequests().then(setWfhRequests).catch(() => {}); };
@@ -1013,6 +1064,12 @@ export function AttendancePage() {
     window.addEventListener("wfh:invalidate", refetch);
     return () => window.removeEventListener("wfh:invalidate", refetch);
   }, []);
+
+  useEffect(() => {
+    getMyProfile().then((p) => setMyWorkMode(p.employee.work_mode ?? null)).catch(() => {});
+  }, []);
+
+  const isPermanentWfh = myWorkMode === "wfh";
 
   const handleSubmitReg = useCallback(async (data: { attendance_record_id: string; requested_clock_in: string; requested_clock_out: string; reason: string }) => {
     const ok = await reg.submit(data);
@@ -1039,8 +1096,19 @@ export function AttendancePage() {
       {reg.formError && <Alert variant="error">{reg.formError}</Alert>}
 
       {/* WFH Request Modal */}
-      {wfhDate !== null && (
-        <WfhRequestForm prefillDate={wfhDate} onClose={() => setWfhDate(null)} onSuccess={() => { listWfhRequests().then(setWfhRequests).catch(() => {}); }} />
+      {wfhDate !== null && !isPermanentWfh && (
+        <WfhRequestForm
+          prefillDate={wfhDate}
+          wfhRequests={wfhRequests}
+          onClose={() => setWfhDate(null)}
+          onSuccess={() => { listWfhRequests().then(setWfhRequests).catch(() => {}); }}
+        />
+      )}
+
+      {isPermanentWfh && (
+        <Alert variant="warning">
+          You&apos;re on permanent WFH — your attendance is auto-marked. No need to request WFH.
+        </Alert>
       )}
 
       {/* Top Row: Stats | Timings | Actions */}
@@ -1080,9 +1148,11 @@ export function AttendancePage() {
               ))}
             </div>
             <div className="flex items-center gap-3">
-              <Button size="sm" variant="secondary" onClick={() => setWfhDate("")}>
-                Apply WFH
-              </Button>
+              {!isPermanentWfh && (
+                <Button size="sm" variant="secondary" onClick={() => setWfhDate("")}>
+                  Apply WFH
+                </Button>
+              )}
               <MonthPills year={year} month={month} onSelect={handleMonthSelect} />
             </div>
           </div>
@@ -1101,7 +1171,7 @@ export function AttendancePage() {
               onSubmitReg={handleSubmitReg}
               onCancelReg={() => setRegularizingId(null)}
               onCancelRequest={reg.cancel}
-              onApplyWfh={(date) => setWfhDate(date)}
+              onApplyWfh={isPermanentWfh ? undefined : (date) => setWfhDate(date)}
             />
           ) : (
             <CardContent>
