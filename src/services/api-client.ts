@@ -1,15 +1,26 @@
+import { API_PORT, PYTHON_API_PORT } from "@/lib/constants";
 import { tokens } from "@/lib/tokens";
-import { getApiBaseUrl } from "@/lib/tenant";
 import type { ApiError } from "@/types";
 
-function getBaseUrl(): string {
+const PYTHON_SERVICES = ["payroll"];
+
+function isPythonService(path: string): boolean {
+  const match = path.match(/^\/api\/v1\/([^/]+)/);
+  return match ? PYTHON_SERVICES.includes(match[1]) : false;
+}
+
+function getBackendBaseUrl(path: string): string {
   if (typeof window === "undefined") return "";
-  return getApiBaseUrl(window.location.hostname);
+  const protocol = window.location.protocol;
+  const hostname = window.location.hostname;
+  const port = isPythonService(path) ? PYTHON_API_PORT : API_PORT;
+  return `${protocol}//${hostname}${port ? `:${port}` : ""}`;
 }
 
 async function refreshTokens(): Promise<boolean> {
   try {
-    const response = await fetch(`${getBaseUrl()}/api/v1/auth/refresh`, {
+    const baseUrl = getBackendBaseUrl("/api/v1/auth/refresh");
+    const response = await fetch(`${baseUrl}/api/v1/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh_token: tokens.getRefresh() }),
@@ -26,7 +37,8 @@ async function refreshTokens(): Promise<boolean> {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const url = `${getBaseUrl()}${path}`;
+  const baseUrl = getBackendBaseUrl(path);
+  const url = `${baseUrl}${path}`;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options.headers as Record<string, string>),
@@ -51,10 +63,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     }
   }
 
-  const data = await response.json();
+  const data = response.status === 204 || response.status === 205 ? undefined : await response.json();
 
   if (!response.ok) {
-    // Handle 403 "Organization setup required" globally
     if (response.status === 403 && data.error === "Organization setup required") {
       window.location.href = "/setup";
       throw { status: 403, error: data.error } as ApiError;

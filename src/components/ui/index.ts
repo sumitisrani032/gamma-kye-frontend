@@ -6,3 +6,4 @@ export { Alert } from "./alert";
 export { Stepper } from "./stepper";
 export { Badge } from "./badge";
 export { Skeleton, SkeletonCard, SkeletonRow, SkeletonTable } from "./skeleton";
+export { Modal } from "./modal";

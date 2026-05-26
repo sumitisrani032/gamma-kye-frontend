@@ -1,7 +1,7 @@
 interface JwtPayload {
-  user_id: number;
+  user_id: string;
   roles: string[];
-  tenant_id: number;
+  tenant_id: string;
   exp: number;
 }
 

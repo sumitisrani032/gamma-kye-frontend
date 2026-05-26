@@ -18,7 +18,6 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [prevPathname, setPrevPathname] = useState(pathname);
 
-  // Close on route change without useEffect setState
   if (pathname !== prevPathname) {
     setPrevPathname(pathname);
     if (open) setOpen(false);
@@ -76,27 +75,21 @@ export function TenantSidebar() {
     canWithScope("workflow", "create", "global") ||
     canWithScope("employee_document", "verify", "global");
 
-  const visibleNav = navigation.filter((item) => {
+  const isItemVisible = (item: NavItem) => {
     if (item.requireRole && !user?.roles?.includes(item.requireRole)) return false;
-    if (item.href === "/settings") return canSeeSettings;
     if (!item.resource) return true;
     if (item.action && item.minScope) return canWithScope(item.resource, item.action, item.minScope);
     return canAccessModule(item.resource);
-  });
+  };
 
   const sidebarContent = (
     <>
       {/* Logo */}
       <div className="flex h-14 items-center justify-between px-4 border-b border-border shrink-0">
         <Link href="/dashboard" className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600 text-white text-sm font-bold shrink-0">
-            G
-          </div>
-          <span className="text-sm font-bold text-primary-600 truncate">
-            GammaKYE
-          </span>
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600 text-white text-sm font-bold shrink-0">G</div>
+          <span className="text-sm font-bold text-primary-600 truncate">GammaKYE</span>
         </Link>
-        {/* Mobile close button */}
         <button onClick={close} className="lg:hidden text-text-muted hover:text-text-primary p-1">
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -106,19 +99,20 @@ export function TenantSidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
-        {visibleNav.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+        {navigation.map((item) => {
+          if (item.href === "/settings" && !canSeeSettings) return null;
+          if (!isItemVisible(item)) return null;
+
+          const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href + "/"));
           return (
             <Link
               key={item.name}
               href={item.href}
-              className={`
-                flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-150
-                ${isActive
+              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-150 ${
+                isActive
                   ? "bg-primary-600/10 text-primary-600"
                   : "text-text-secondary hover:bg-surface-tertiary hover:text-text-primary"
-                }
-              `}
+              }`}
             >
               <item.icon className={`h-[18px] w-[18px] shrink-0 ${isActive ? "text-primary-600" : ""}`} />
               {item.name}
@@ -135,19 +129,11 @@ export function TenantSidebar() {
               {user?.first_name?.[0]?.toUpperCase() || "U"}
             </div>
             <div className="min-w-0">
-              <p className="text-[13px] font-medium text-text-primary truncate">
-                {user ? `${user.first_name} ${user.last_name}` : "User"}
-              </p>
-              <p className="text-[11px] text-text-muted truncate">
-                {user?.roles?.[0] || ""}
-              </p>
+              <p className="text-[13px] font-medium text-text-primary truncate">{user ? `${user.first_name} ${user.last_name}` : "User"}</p>
+              <p className="text-[11px] text-text-muted truncate">{user?.roles?.[0] || ""}</p>
             </div>
           </Link>
-          <button
-            onClick={logout}
-            className="text-text-muted hover:text-danger transition-colors shrink-0 p-1 rounded-md hover:bg-surface-tertiary"
-            title="Sign out"
-          >
+          <button onClick={logout} className="text-text-muted hover:text-danger transition-colors shrink-0 p-1 rounded-md hover:bg-surface-tertiary" title="Sign out">
             <LogoutIcon className="h-4 w-4" />
           </button>
         </div>
@@ -157,19 +143,13 @@ export function TenantSidebar() {
 
   return (
     <>
-      {/* Desktop sidebar */}
       <aside className="hidden lg:flex h-full w-60 flex-col bg-surface border-r border-border shrink-0">
         {sidebarContent}
       </aside>
-
-      {/* Mobile overlay */}
       {open && (
         <div className="fixed inset-0 z-40 lg:hidden" onClick={close}>
           <div className="absolute inset-0 bg-black/30" />
-          <aside
-            className="absolute left-0 top-0 h-full w-64 flex flex-col bg-surface shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <aside className="absolute left-0 top-0 h-full w-64 flex flex-col bg-surface shadow-xl" onClick={(e) => e.stopPropagation()}>
             {sidebarContent}
           </aside>
         </div>
