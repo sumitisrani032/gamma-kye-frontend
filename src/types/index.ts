@@ -42,6 +42,7 @@ export interface User {
   last_name: string;
   roles: string[];
   permissions: Permission[];
+  employee_id?: string;
 }
 
 export interface AuthTokens {
@@ -105,6 +106,121 @@ export interface Pagination {
 export interface PaginatedListParams {
   page?: number;
   per_page?: number;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Payroll                                                           */
+/* ------------------------------------------------------------------ */
+
+// --- Salary Components Master ---
+
+export interface SalaryComponentData {
+  tenant_location_id: string;
+  code: string;
+  name: string;
+  description?: string;
+  created_by?: string;
+  is_active: boolean;
+  type: "earning" | "deduction";
+  calculation_type: "fixed" | "percentage";
+  percentage_value?: number;
+  percentage_of?: string;
+}
+
+export interface SalaryComponent extends SalaryComponentData {
+  id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SalaryComponentListResult {
+  items: SalaryComponent[];
+  total: number;
+}
+
+// --- Employee Salaries ---
+
+export interface EmployeeSalaryData {
+  employee_id: string;
+  annual_ctc: number;
+  currency: string;
+  year: number;
+  status: "draft" | "approved" | "paid";
+  effective_from: string;
+  effective_to?: string;
+  remarks?: string;
+  created_by?: string;
+  approved_by?: string;
+}
+
+export interface EmployeeSalary extends EmployeeSalaryData {
+  id: number;
+  employee_name?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmployeeSalaryListResult {
+  items: EmployeeSalary[];
+  total: number;
+}
+
+// --- Employee Salary Components (link table) ---
+
+export interface EmployeeSalaryComponentData {
+  employee_salary_id: number;
+  salary_component_id: number;
+  monthly_amount: number;
+}
+
+export interface EmployeeSalaryComponent extends EmployeeSalaryComponentData {
+  id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmployeeSalaryComponentListResult {
+  items: EmployeeSalaryComponent[];
+  total: number;
+}
+
+// --- Employee Payslips ---
+
+export interface EmployeePayslipData {
+  employee_id: string;
+  employee_salary_id: number;
+  month: number;
+  year: number;
+  component_snapshot: Record<string, unknown>;
+  gross_amount: number;
+  net_amount: number;
+  deduction_amount: number;
+  generated_on: string;
+  generated_by?: string;
+  status: "draft" | "approved" | "paid";
+  total_attendance: number;
+  paid_days: number;
+  lop_days?: number;
+}
+
+export interface EmployeePayslip extends EmployeePayslipData {
+  id: number;
+  employee_name?: string;
+  employee_designation?: string;
+  employee_department?: string;
+  date_of_joining?: string;
+  work_location?: string;
+  company_name?: string;
+  company_address?: string;
+  company_tax_id?: string;
+  company_registration_number?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmployeePayslipListResult {
+  items: EmployeePayslip[];
+  total: number;
 }
 
 /* ------------------------------------------------------------------ */
