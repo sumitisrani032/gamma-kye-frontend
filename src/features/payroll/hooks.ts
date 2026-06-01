@@ -85,7 +85,7 @@ export function useDeleteSalaryComponent() {
 // ──────────────────────────────────────────────
 // Employee Salaries
 // ──────────────────────────────────────────────
-export function useEmployeeSalariesList(params?: { employee_id?: string; offset?: number; limit?: number }) {
+export function useEmployeeSalariesList(params?: { employee_id?: string; search?: string; offset?: number; limit?: number }) {
   return useQuery({
     queryKey: keys.employeeSalaries(params),
     queryFn: () => listEmployeeSalaries(params),

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { TopBar } from "@/components/layout/top-bar";
 import { Button, Alert, Card, CardContent, CardHeader, Input, Select } from "@/components/ui";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Modal } from "@/components/ui/modal";
 import { Can } from "@/components/common/can";
 import { SalaryComponentsMaster } from "@/features/payroll/components/salary-components-master";
@@ -119,50 +120,60 @@ export default function PayrollPage() {
 /* ─── CTC List ─── */
 
 function CtcListPanel() {
-  const { data, isLoading } = useEmployeeSalariesList({ limit: 100 });
+  const [search, setSearch] = useState("");
+  const { data, isLoading } = useEmployeeSalariesList({ search: search || undefined, limit: 100 });
   const salaries = data?.items || [];
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
-      </div>
-    );
-  }
-
   return (
-    <div className="overflow-x-auto rounded-xl border border-border">
-      <table className="w-full text-sm">
-        <thead className="bg-surface-secondary">
-          <tr>
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Employee</th>
-            <th className="px-4 py-3 text-right font-medium text-text-secondary">Annual CTC</th>
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Currency</th>
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Year</th>
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">From</th>
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">To</th>
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Status</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border">
-          {salaries.map((s: EmployeeSalary) => (
-            <tr key={s.id} className="hover:bg-surface-secondary/50">
-              <td className="px-4 py-3 text-text-primary">{s.employee_name || s.employee_id.slice(0, 8)}</td>
-              <td className="px-4 py-3 text-right font-medium text-text-primary">{s.annual_ctc.toLocaleString("en-IN")}</td>
-              <td className="px-4 py-3 text-text-primary">{s.currency}</td>
-              <td className="px-4 py-3 text-text-primary">{s.year}</td>
-              <td className="px-4 py-3 text-text-secondary">{s.effective_from}</td>
-              <td className="px-4 py-3 text-text-secondary">{s.effective_to || "—"}</td>
-              <td className="px-4 py-3">
-                <span className={statusBadge(s.status)}>{s.status}</span>
-              </td>
-            </tr>
-          ))}
-          {salaries.length === 0 && (
-            <tr><td colSpan={7} className="px-4 py-8 text-center text-text-muted">No salary assignments yet.</td></tr>
-          )}
-        </tbody>
-      </table>
+    <div>
+      <div className="px-4 py-3 border-b border-border">
+        <input
+          type="text"
+          placeholder="Search by employee name..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full max-w-xs rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
+        />
+      </div>
+      <div className="overflow-x-auto max-h-96 overflow-y-auto">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+          </div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-surface-secondary sticky top-0">
+              <tr>
+                <th className="px-4 py-3 text-left font-medium text-text-secondary">Employee</th>
+                <th className="px-4 py-3 text-right font-medium text-text-secondary">Annual CTC</th>
+                <th className="px-4 py-3 text-left font-medium text-text-secondary">Currency</th>
+                <th className="px-4 py-3 text-left font-medium text-text-secondary">Year</th>
+                <th className="px-4 py-3 text-left font-medium text-text-secondary">From</th>
+                <th className="px-4 py-3 text-left font-medium text-text-secondary">To</th>
+                <th className="px-4 py-3 text-left font-medium text-text-secondary">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {salaries.map((s: EmployeeSalary) => (
+                <tr key={s.id} className="hover:bg-surface-secondary/50">
+                  <td className="px-4 py-3 text-text-primary">{s.employee_name || s.employee_id.slice(0, 8)}</td>
+                  <td className="px-4 py-3 text-right font-medium text-text-primary">{s.annual_ctc.toLocaleString("en-IN")}</td>
+                  <td className="px-4 py-3 text-text-primary">{s.currency}</td>
+                  <td className="px-4 py-3 text-text-primary">{s.year}</td>
+                  <td className="px-4 py-3 text-text-secondary">{s.effective_from}</td>
+                  <td className="px-4 py-3 text-text-secondary">{s.effective_to || "—"}</td>
+                  <td className="px-4 py-3">
+                    <span className={statusBadge(s.status)}>{s.status}</span>
+                  </td>
+                </tr>
+              ))}
+              {salaries.length === 0 && (
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-text-muted">No salary assignments yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }
@@ -308,11 +319,12 @@ function SalarySetupPanel() {
           <CardHeader>{salary ? "Edit Employee CTC" : "Create Employee CTC"}</CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <Select
+              <SearchableSelect
                 label="Employee"
                 value={selectedEmployeeId}
-                onChange={(e) => setSelectedEmployeeId(e.target.value)}
-                options={[{ value: "", label: "Select an employee..." }, ...employeeOptions]}
+                onChange={setSelectedEmployeeId}
+                options={employeeOptions}
+                placeholder={employeesLoading ? "Loading..." : "Type to search employee..."}
                 disabled={employeesLoading}
               />
               {selectedEmployeeId && (
@@ -865,11 +877,12 @@ function BreakdownPanel() {
         <CardHeader>Employee & Period</CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Select
+            <SearchableSelect
               label="Employee"
               value={selectedEmployeeId}
-              onChange={(e) => setSelectedEmployeeId(e.target.value)}
-              options={[{ value: "", label: "Select an employee..." }, ...employeeOptions]}
+              onChange={setSelectedEmployeeId}
+              options={employeeOptions}
+              placeholder={employeesLoading ? "Loading..." : "Type to search employee..."}
               disabled={employeesLoading}
             />
             <Select

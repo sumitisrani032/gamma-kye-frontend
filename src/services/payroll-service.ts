@@ -52,10 +52,11 @@ export async function deleteSalaryComponent(id: number): Promise<void> {
 const ES_BASE = "/api/v1/payroll/employee-salaries";
 
 export async function listEmployeeSalaries(
-  params?: { employee_id?: string; offset?: number; limit?: number },
+  params?: { employee_id?: string; search?: string; offset?: number; limit?: number },
 ): Promise<EmployeeSalaryListResult> {
   const qs = new URLSearchParams();
   if (params?.employee_id) qs.set("employee_id", params.employee_id);
+  if (params?.search) qs.set("search", params.search);
   if (params?.offset !== undefined) qs.set("offset", String(params.offset));
   if (params?.limit !== undefined) qs.set("limit", String(params.limit));
   const query = qs.toString();
