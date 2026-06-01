@@ -193,7 +193,95 @@ export function SalaryComponentsMaster() {
         </form>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-border">
+      {/* Mobile card view */}
+      <div className="block sm:hidden space-y-3">
+        {components.map((c: SalaryComponent) => {
+          const isExpanded = expandedId === c.id;
+          return (
+            <div key={c.id} className="bg-white rounded-xl border border-border shadow-sm">
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
+                      c.type === "earning" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                    }`}>
+                      {c.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-text-primary truncate">{c.name}</p>
+                      <p className="text-[10px] font-mono text-text-muted uppercase tracking-wider">{c.code}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${c.type === "earning" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{c.type}</span>
+                    <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${c.is_active ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"}`}>{c.is_active ? "Active" : "Inactive"}</span>
+                  </div>
+                </div>
+                <div className="border-t border-border/50 pt-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-text-muted">Calculation</span>
+                    <span className="text-text-primary font-medium">
+                      {c.calculation_type === "percentage" ? `${c.percentage_value}% of ${c.percentage_of}` : "Fixed amount"}
+                    </span>
+                  </div>
+                </div>
+                <Can resource="payroll" action="process">
+                  <div className="flex items-center gap-2 pt-1 border-t border-border/50">
+                    <button
+                      onClick={() => { if (isExpanded) { setExpandedId(null); } else { handleEdit(c); } }}
+                      className="flex-1 rounded-lg bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700 transition-colors"
+                    >
+                      {isExpanded ? "Cancel" : "Edit"}
+                    </button>
+                    <button
+                      onClick={() => setDeleteTarget(c.id)}
+                      className="flex-1 rounded-lg bg-red-600 text-white px-3 py-2 text-xs font-medium hover:bg-red-700 transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </Can>
+              </div>
+              {isExpanded && (
+                <div className="border-t border-border bg-surface-secondary/30">
+                  <div className="p-4">
+                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+                      <div className="grid grid-cols-1 gap-3">
+                        <Input label="Code" {...register("code")} error={errors.code?.message} />
+                        <Input label="Name" {...register("name")} error={errors.name?.message} />
+                        <Select label="Type" {...register("type")} error={errors.type?.message}
+                          options={[{ value: "earning", label: "Earning" }, { value: "deduction", label: "Deduction" }]} />
+                        <Select label="Calculation" {...register("calculation_type")} error={errors.calculation_type?.message}
+                          options={[{ value: "fixed", label: "Fixed" }, { value: "percentage", label: "Percentage" }]} />
+                        {watchedCalcType === "percentage" && (
+                          <>
+                            <Input label="Percentage Value" type="number" step="0.01" min="0" max="100" {...register("percentage_value")} error={errors.percentage_value?.message} />
+                            <Input label="Percentage Of" {...register("percentage_of")} error={errors.percentage_of?.message} placeholder="e.g. basic" />
+                          </>
+                        )}
+                        <Input label="Description" {...register("description")} />
+                        <label className="flex items-center gap-2 py-1">
+                          <input type="checkbox" {...register("is_active")} className="h-4 w-4" />
+                          <span className="text-sm text-text-primary font-medium">Active</span>
+                        </label>
+                      </div>
+                      <div className="flex gap-3 pt-1">
+                        <Button type="submit" loading={updateMutation.isPending}>Update</Button>
+                        <Button type="button" variant="secondary" onClick={cancelEdit}>Cancel</Button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {components.length === 0 && (
+          <div className="px-4 py-8 text-center text-text-muted text-sm bg-white rounded-xl border border-border shadow-sm">No salary components yet.</div>
+        )}
+      </div>
+      {/* Desktop table */}
+      <div className="hidden sm:block overflow-x-auto rounded-xl border border-border">
         <table className="w-full text-sm">
           <thead className="bg-surface-secondary">
             <tr>
@@ -222,20 +310,22 @@ export function SalaryComponentsMaster() {
                     <td className="px-4 py-3">
                       <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${c.is_active ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"}`}>{c.is_active ? "Yes" : "No"}</span>
                     </td>
-                    <td className="px-4 py-3 text-right space-x-2">
+                    <td className="px-4 py-3 text-right">
                       <Can resource="payroll" action="process">
-                        <button
-                          onClick={() => { if (isExpanded) { setExpandedId(null); } else { handleEdit(c); } }}
-                          className="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700 transition-colors"
-                        >
-                          {isExpanded ? "Cancel" : "Edit"}
-                        </button>
-                        <button
-                          onClick={() => setDeleteTarget(c.id)}
-                          className="rounded-lg bg-danger px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity"
-                        >
-                          Delete
-                        </button>
+                        <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 sm:gap-2">
+                          <button
+                            onClick={() => { if (isExpanded) { setExpandedId(null); } else { handleEdit(c); } }}
+                            className="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700 transition-colors"
+                          >
+                            {isExpanded ? "Cancel" : "Edit"}
+                          </button>
+                          <button
+                            onClick={() => setDeleteTarget(c.id)}
+                            className="rounded-lg bg-danger px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </Can>
                     </td>
                   </tr>

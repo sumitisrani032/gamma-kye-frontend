@@ -91,13 +91,13 @@ export default function PayrollPage() {
   return (
     <>
       <TopBar title="Payroll" description="Manage salary components, CTC, and payslips" />
-      <div className="px-8 py-6 space-y-6">
-        <div className="flex items-center gap-2 border-b border-border pb-3 overflow-x-auto">
+      <div className="px-4 sm:px-8 py-6 space-y-6">
+        <div className="flex border-b border-border pb-3">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+              className={`flex-1 min-w-0 rounded-lg px-1.5 sm:px-3 py-1.5 text-[11px] sm:text-sm font-medium transition-colors text-center ${
                 activeTab === tab.key
                   ? "bg-primary-600 text-white"
                   : "text-text-secondary hover:bg-surface-tertiary"
@@ -135,45 +135,87 @@ function CtcListPanel() {
           className="w-full max-w-xs rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
         />
       </div>
-      <div className="overflow-x-auto max-h-96 overflow-y-auto">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+        </div>
+      ) : (
+        <>
+          {/* Mobile card view */}
+          <div className="block sm:hidden space-y-3 p-3 max-h-96 overflow-y-auto">
+            {salaries.map((s: EmployeeSalary) => (
+              <div key={s.id} className="bg-white rounded-xl border border-border shadow-sm p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-bold shrink-0">
+                      {(s.employee_name || "?").charAt(0).toUpperCase()}
+                    </div>
+                    <span className="font-medium text-text-primary text-sm truncate">{s.employee_name || s.employee_id.slice(0, 8)}</span>
+                  </div>
+                  <span className={statusBadge(s.status)}>{s.status}</span>
+                </div>
+                <div className="border-t border-border/50 pt-3">
+                  <div className="grid grid-cols-2 gap-y-2 gap-x-4">
+                    <div>
+                      <span className="text-[10px] uppercase tracking-wider text-text-muted">Annual CTC</span>
+                      <p className="text-sm font-semibold text-text-primary">₹{s.annual_ctc.toLocaleString("en-IN")}</p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase tracking-wider text-text-muted">Currency</span>
+                      <p className="text-sm text-text-primary">{s.currency}</p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase tracking-wider text-text-muted">Year</span>
+                      <p className="text-sm text-text-primary">{s.year}</p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase tracking-wider text-text-muted">Period</span>
+                      <p className="text-sm text-text-primary">{s.effective_from} – {s.effective_to || "Present"}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {salaries.length === 0 && (
+              <div className="px-4 py-8 text-center text-text-muted text-sm">No salary assignments yet.</div>
+            )}
           </div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-surface-secondary sticky top-0">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium text-text-secondary">Employee</th>
-                <th className="px-4 py-3 text-right font-medium text-text-secondary">Annual CTC</th>
-                <th className="px-4 py-3 text-left font-medium text-text-secondary">Currency</th>
-                <th className="px-4 py-3 text-left font-medium text-text-secondary">Year</th>
-                <th className="px-4 py-3 text-left font-medium text-text-secondary">From</th>
-                <th className="px-4 py-3 text-left font-medium text-text-secondary">To</th>
-                <th className="px-4 py-3 text-left font-medium text-text-secondary">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {salaries.map((s: EmployeeSalary) => (
-                <tr key={s.id} className="hover:bg-surface-secondary/50">
-                  <td className="px-4 py-3 text-text-primary">{s.employee_name || s.employee_id.slice(0, 8)}</td>
-                  <td className="px-4 py-3 text-right font-medium text-text-primary">{s.annual_ctc.toLocaleString("en-IN")}</td>
-                  <td className="px-4 py-3 text-text-primary">{s.currency}</td>
-                  <td className="px-4 py-3 text-text-primary">{s.year}</td>
-                  <td className="px-4 py-3 text-text-secondary">{s.effective_from}</td>
-                  <td className="px-4 py-3 text-text-secondary">{s.effective_to || "—"}</td>
-                  <td className="px-4 py-3">
-                    <span className={statusBadge(s.status)}>{s.status}</span>
-                  </td>
+          {/* Desktop table */}
+          <div className="hidden sm:block overflow-x-auto max-h-96 overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-surface-secondary sticky top-0">
+                <tr>
+                  <th className="px-4 py-3 text-left font-medium text-text-secondary">Employee</th>
+                  <th className="px-4 py-3 text-right font-medium text-text-secondary">Annual CTC</th>
+                  <th className="px-4 py-3 text-left font-medium text-text-secondary">Currency</th>
+                  <th className="px-4 py-3 text-left font-medium text-text-secondary">Year</th>
+                  <th className="px-4 py-3 text-left font-medium text-text-secondary">From</th>
+                  <th className="px-4 py-3 text-left font-medium text-text-secondary">To</th>
+                  <th className="px-4 py-3 text-left font-medium text-text-secondary">Status</th>
                 </tr>
-              ))}
-              {salaries.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-text-muted">No salary assignments yet.</td></tr>
-              )}
-            </tbody>
-          </table>
-        )}
-      </div>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {salaries.map((s: EmployeeSalary) => (
+                  <tr key={s.id} className="hover:bg-surface-secondary/50">
+                    <td className="px-4 py-3 text-text-primary">{s.employee_name || s.employee_id.slice(0, 8)}</td>
+                    <td className="px-4 py-3 text-right font-medium text-text-primary">{s.annual_ctc.toLocaleString("en-IN")}</td>
+                    <td className="px-4 py-3 text-text-primary">{s.currency}</td>
+                    <td className="px-4 py-3 text-text-primary">{s.year}</td>
+                    <td className="px-4 py-3 text-text-secondary">{s.effective_from}</td>
+                    <td className="px-4 py-3 text-text-secondary">{s.effective_to || "—"}</td>
+                    <td className="px-4 py-3">
+                      <span className={statusBadge(s.status)}>{s.status}</span>
+                    </td>
+                  </tr>
+                ))}
+                {salaries.length === 0 && (
+                  <tr><td colSpan={7} className="px-4 py-8 text-center text-text-muted">No salary assignments yet.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -692,7 +734,7 @@ function BreakdownPanel() {
 
   // Resolve amounts for percentage components
   const resolvedAllocations = useMemo(() => {
-    const amounts: Record<number, string> = {};
+    const amounts: Record<string, string> = {};
     const codeToRowId: Record<string, string> = {};
     for (const allocation of allocations) {
       if (allocation.component_code) codeToRowId[allocation.component_code.toLowerCase()] = allocation.row_id;
@@ -907,8 +949,8 @@ function BreakdownPanel() {
           <CardHeader>CTC Details</CardHeader>
           <CardContent>
             {salary ? (
-              <div className="flex items-center justify-between">
-                <div className="flex gap-8 text-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
                   <div>
                     <span className="text-text-secondary">Annual CTC: </span>
                     <span className="font-semibold text-text-primary">{salary.annual_ctc.toLocaleString("en-IN")}</span>
@@ -939,7 +981,7 @@ function BreakdownPanel() {
       {selectedEmployeeId && !scLoading && (
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
               <span>Component Breakdown</span>
               <span className="text-sm font-normal text-text-secondary">
                 {sourcePeriod ? `Source: ${sourcePeriod}` : `${allocations.length} component${allocations.length !== 1 ? "s" : ""} assigned`}
@@ -947,7 +989,122 @@ function BreakdownPanel() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            {/* Mobile card view */}
+            <div className="block sm:hidden space-y-3 p-3">
+              {allocations.map((alloc) => {
+                const resolved = resolvedAllocations.find((r) => r.row_id === alloc.row_id);
+                const isPercentage = alloc.calculation_type === "percentage";
+                const isCustom = alloc.component_id === null;
+                return (
+                  <div key={alloc.row_id} className="bg-white rounded-xl border border-border shadow-sm p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0 mr-2">
+                        {isCustom ? (
+                          <Input
+                            value={alloc.component_name}
+                            onChange={(e) => {
+                              const name = e.target.value;
+                              updateAllocation(alloc.row_id, { component_name: name, component_code: componentCodeFromName(name) });
+                            }}
+                            placeholder="Component name"
+                            aria-label="Custom component name"
+                          />
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-bold shrink-0">
+                              {alloc.component_name.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-text-primary">{alloc.component_name}</p>
+                              <p className="text-[10px] text-text-muted uppercase tracking-wider">{alloc.component_code}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => removeComponent(alloc.row_id)}
+                        className="rounded-lg bg-red-600 text-white px-2.5 py-1.5 text-xs font-medium hover:bg-red-700 transition-colors shrink-0"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <div className="border-t border-border/50 pt-3">
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-3">
+                        <Select
+                          label="Type"
+                          value={alloc.type}
+                          onChange={(e) => updateAllocation(alloc.row_id, { type: e.target.value as "earning" | "deduction" })}
+                          options={[{ value: "earning", label: "Earning" }, { value: "deduction", label: "Deduction" }]}
+                          aria-label={`${alloc.component_name} component type`}
+                          disabled={!isCustom}
+                        />
+                        <Select
+                          label="Calculation"
+                          value={alloc.calculation_type}
+                          onChange={(e) => updateAllocation(alloc.row_id, { calculation_type: e.target.value as "fixed" | "percentage" })}
+                          options={[{ value: "fixed", label: "Fixed" }, { value: "percentage", label: "% based" }]}
+                          aria-label={`${alloc.component_name} calculation type`}
+                        />
+                        {isPercentage ? (
+                          <>
+                            <Input
+                              label="Percentage"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={alloc.percentage_value}
+                              onChange={(e) => updateAllocation(alloc.row_id, { percentage_value: e.target.value })}
+                              aria-label={`${alloc.component_name} percentage`}
+                            />
+                            <Select
+                              label="Of Component"
+                              value={alloc.percentage_of}
+                              onChange={(e) => updateAllocation(alloc.row_id, { percentage_of: e.target.value })}
+                              options={[{ value: "", label: "Select..." }, ...calculationBaseOptions.filter((option) => option.value !== alloc.component_code)]}
+                              aria-label={`${alloc.component_name} percentage base component`}
+                            />
+                          </>
+                        ) : (
+                          <div className="col-span-2">
+                            <Input
+                              label="Monthly Amount"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={alloc.monthly_amount}
+                              onChange={(e) => updateAmount(alloc.row_id, e.target.value)}
+                              aria-label={`${alloc.component_name} monthly amount`}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {allocations.length === 0 && (
+                <div className="px-4 py-8 text-center text-text-muted text-sm">No components assigned yet.</div>
+              )}
+              {/* Mobile totals */}
+              <div className="bg-surface-secondary rounded-xl border border-border/50 p-4 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-text-secondary uppercase tracking-wider">Sum Per Month</span>
+                  <span className="text-base font-bold text-text-primary">₹{totalMonthly.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-text-secondary">Expected Monthly</span>
+                  <span className="text-text-primary">₹{expectedMonthly.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                </div>
+                {totalMonthly > 0 && (
+                  <div className={`flex justify-between items-center text-xs pt-1 border-t border-border/50 ${Math.abs(totalMonthly - expectedMonthly) < 1 ? "text-green-600" : "text-amber-600"}`}>
+                    <span>Variance</span>
+                    <span className="font-medium">₹{(totalMonthly - expectedMonthly).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            {/* Desktop table */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-surface-secondary">
                   <tr>
@@ -992,7 +1149,7 @@ function BreakdownPanel() {
             </div>
 
             {/* Totals bar */}
-            <div className="flex items-center justify-between border-t border-border bg-surface px-4 py-3">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-t border-border bg-surface px-4 py-3">
               <div className="text-sm">
                 <span className="text-text-secondary">Annual CTC: </span>
                 <span className="font-semibold text-text-primary">{annualCtc.toLocaleString("en-IN")}</span>
@@ -1009,9 +1166,9 @@ function BreakdownPanel() {
             </div>
 
             {/* Add Component + Generate */}
-            <div className="flex items-center justify-between border-t border-border px-4 py-3">
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-text-secondary">Add component:</span>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 border-t border-border px-3 sm:px-4 py-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <span className="text-xs sm:text-sm text-text-secondary">Add component:</span>
                 <select
                   value=""
                   onChange={(e) => {
@@ -1020,7 +1177,7 @@ function BreakdownPanel() {
                     e.target.value = "";
                   }}
 
-                  className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="rounded-lg border border-border bg-surface px-2 py-1.5 text-xs sm:px-3 sm:text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="">Select...</option>
                   <optgroup label="Earnings">
@@ -1038,20 +1195,22 @@ function BreakdownPanel() {
                   type="button"
                   onClick={addCustomComponent}
 
-                  className="rounded-lg bg-surface-secondary px-3 py-1.5 text-sm font-medium text-text-primary hover:bg-surface-tertiary disabled:opacity-50"
+                  className="rounded-lg bg-surface-secondary px-2 py-1.5 text-xs sm:px-3 sm:text-sm font-medium text-text-primary hover:bg-surface-tertiary disabled:opacity-50"
                 >
-                  Custom Component
+                  <span className="sm:hidden">Custom</span>
+                  <span className="hidden sm:inline">Custom Component</span>
                 </button>
               </div>
 
               <Can resource="payroll" action="process">
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <Button
                     onClick={saveAllocations}
                     loading={allocSaving}
                     disabled={!salary || (!allocationsDirty && allocations.length > 0)}
                     variant="secondary"
                     size="lg"
+                    className="px-3 py-2 text-xs sm:px-6 sm:py-3 sm:text-base"
                   >
                     Save Breakdown
                   </Button>
@@ -1060,6 +1219,7 @@ function BreakdownPanel() {
                     loading={generating || allocSaving}
                     disabled={!salary || allocations.length === 0}
                     size="lg"
+                    className="px-3 py-2 text-xs sm:px-6 sm:py-3 sm:text-base"
                   >
                     Generate Payslip
                   </Button>
@@ -1122,7 +1282,62 @@ function CombinedPayslipsPanel() {
         <Card>
           <CardHeader>Pending Approvals</CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            {/* Mobile card view */}
+            <div className="block sm:hidden space-y-3 p-3">
+              {pending.map((p: EmployeePayslip) => (
+                <div key={p.id} className="bg-white rounded-xl border border-border shadow-sm p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold shrink-0">
+                        {(p.employee_name || "?").charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-text-primary truncate">{p.employee_name || p.employee_id.slice(0, 8)}</p>
+                        <p className="text-[10px] text-text-muted uppercase tracking-wider">{MONTHS_SHORT[p.month]} {p.year}</p>
+                      </div>
+                    </div>
+                    <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700">Pending</span>
+                  </div>
+                  <div className="border-t border-border/50 pt-3">
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="text-center">
+                        <span className="text-[10px] uppercase tracking-wider text-text-muted block">Gross</span>
+                        <p className="text-sm font-medium text-text-primary">₹{p.gross_amount.toLocaleString("en-IN")}</p>
+                      </div>
+                      <div className="text-center">
+                        <span className="text-[10px] uppercase tracking-wider text-text-muted block">Deductions</span>
+                        <p className="text-sm font-medium text-red-600">₹{p.deduction_amount.toLocaleString("en-IN")}</p>
+                      </div>
+                      <div className="text-center">
+                        <span className="text-[10px] uppercase tracking-wider text-text-muted block">Net</span>
+                        <p className="text-base font-bold text-text-primary">₹{p.net_amount.toLocaleString("en-IN")}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1 border-t border-border/50">
+                    <button
+                      onClick={() => handleApprove(p.id)}
+                      disabled={updateMutation.isPending}
+                      className="flex-1 rounded-lg bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => handleMarkPaid(p.id)}
+                      disabled={updateMutation.isPending}
+                      className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                    >
+                      Mark Paid
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {pending.length === 0 && (
+                <div className="px-4 py-8 text-center text-text-muted text-sm">No pending payslips.</div>
+              )}
+            </div>
+            {/* Desktop table */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-surface-secondary">
                   <tr>
@@ -1142,21 +1357,23 @@ function CombinedPayslipsPanel() {
                       <td className="px-4 py-3 text-right text-text-primary">{p.gross_amount.toLocaleString("en-IN")}</td>
                       <td className="px-4 py-3 text-right text-red-600">{p.deduction_amount.toLocaleString("en-IN")}</td>
                       <td className="px-4 py-3 text-right font-semibold text-text-primary">{p.net_amount.toLocaleString("en-IN")}</td>
-                      <td className="px-4 py-3 text-right space-x-2">
-                        <button
-                          onClick={() => handleApprove(p.id)}
-                          disabled={updateMutation.isPending}
-                          className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleMarkPaid(p.id)}
-                          disabled={updateMutation.isPending}
-                          className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                        >
-                          Mark Paid
-                        </button>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex flex-col sm:flex-row items-end sm:items-center justify-end gap-1.5 sm:gap-2">
+                          <button
+                            onClick={() => handleApprove(p.id)}
+                            disabled={updateMutation.isPending}
+                            className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleMarkPaid(p.id)}
+                            disabled={updateMutation.isPending}
+                            className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                          >
+                            Mark Paid
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1173,16 +1390,74 @@ function CombinedPayslipsPanel() {
       <Card>
         <CardHeader>All Payslips</CardHeader>
         <CardContent>
-          <div className="flex items-center gap-4 mb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4 px-1">
             <input
               type="text"
               placeholder="Search by employee name..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full sm:w-auto rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
-          <div className="overflow-x-auto rounded-xl border border-border">
+          {/* Mobile card view */}
+            <div className="block sm:hidden space-y-3 p-3">
+              {payslips.map((p: EmployeePayslip) => (
+                <div key={p.id} className="bg-white rounded-xl border border-border shadow-sm p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                        p.status === "paid" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
+                      }`}>
+                        {(p.employee_name || "?").charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-text-primary truncate">{p.employee_name || p.employee_id.slice(0, 8)}</p>
+                        <p className="text-[10px] text-text-muted uppercase tracking-wider">{MONTHS_SHORT[p.month]} {p.year}</p>
+                      </div>
+                    </div>
+                    <span className={statusBadge(p.status)}>{p.status}</span>
+                  </div>
+                  <div className="border-t border-border/50 pt-3">
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="text-center">
+                        <span className="text-[10px] uppercase tracking-wider text-text-muted block">Gross</span>
+                        <p className="text-sm font-medium text-text-primary">₹{p.gross_amount.toLocaleString("en-IN")}</p>
+                      </div>
+                      <div className="text-center">
+                        <span className="text-[10px] uppercase tracking-wider text-text-muted block">Deductions</span>
+                        <p className="text-sm font-medium text-red-600">₹{p.deduction_amount.toLocaleString("en-IN")}</p>
+                      </div>
+                      <div className="text-center">
+                        <span className="text-[10px] uppercase tracking-wider text-text-muted block">Net</span>
+                        <p className="text-base font-bold text-text-primary">₹{p.net_amount.toLocaleString("en-IN")}</p>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-text-muted mt-2">Generated {new Date(p.generated_on).toLocaleDateString()}</p>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1 border-t border-border/50">
+                    <Link
+                      href={`/payroll/payslips/${p.id}`}
+                      className="flex-1 rounded-lg bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700 transition-colors text-center"
+                    >
+                      View
+                    </Link>
+                    <Can resource="payroll" action="process">
+                      <button
+                        onClick={() => setDeleteId(p.id)}
+                        className="flex-1 rounded-lg bg-red-600 text-white px-3 py-2 text-xs font-medium hover:bg-red-700 transition-colors"
+                      >
+                        Delete
+                      </button>
+                    </Can>
+                  </div>
+                </div>
+              ))}
+              {payslips.length === 0 && (
+                <div className="px-4 py-8 text-center text-text-muted text-sm">No payslips found.</div>
+              )}
+            </div>
+          {/* Desktop table */}
+          <div className="hidden sm:block overflow-x-auto rounded-xl border border-border">
             <table className="w-full text-sm">
               <thead className="bg-surface-secondary">
                 <tr>
@@ -1206,21 +1481,23 @@ function CombinedPayslipsPanel() {
                     <td className="px-4 py-3 text-right font-semibold text-text-primary">{p.net_amount.toLocaleString("en-IN")}</td>
                     <td className="px-4 py-3"><span className={statusBadge(p.status)}>{p.status}</span></td>
                     <td className="px-4 py-3 text-text-secondary">{new Date(p.generated_on).toLocaleDateString()}</td>
-                    <td className="px-4 py-3 text-right space-x-2">
-                      <Link
-                        href={`/payroll/payslips/${p.id}`}
-                        className="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700 transition-colors"
-                      >
-                        View
-                      </Link>
-                      <Can resource="payroll" action="process">
-                        <button
-                          onClick={() => setDeleteId(p.id)}
-                          className="rounded-lg bg-danger px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity"
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex flex-col sm:flex-row items-end sm:items-center justify-end gap-1.5 sm:gap-2">
+                        <Link
+                          href={`/payroll/payslips/${p.id}`}
+                          className="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700 transition-colors"
                         >
-                          Delete
-                        </button>
-                      </Can>
+                          View
+                        </Link>
+                        <Can resource="payroll" action="process">
+                          <button
+                            onClick={() => setDeleteId(p.id)}
+                            className="rounded-lg bg-danger px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity"
+                          >
+                            Delete
+                          </button>
+                        </Can>
+                      </div>
                     </td>
                   </tr>
                 ))}
