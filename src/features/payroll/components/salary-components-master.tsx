@@ -226,16 +226,16 @@ export function SalaryComponentsMaster() {
                   </div>
                 </div>
                 <Can resource="payroll" action="process">
-                  <div className="flex items-center gap-2 pt-1 border-t border-border/50">
+                  <div className="flex items-center justify-end gap-2">
                     <button
                       onClick={() => { if (isExpanded) { setExpandedId(null); } else { handleEdit(c); } }}
-                      className="flex-1 rounded-lg bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700 transition-colors"
+                      className="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700 transition-colors"
                     >
                       {isExpanded ? "Cancel" : "Edit"}
                     </button>
                     <button
                       onClick={() => setDeleteTarget(c.id)}
-                      className="flex-1 rounded-lg bg-red-600 text-white px-3 py-2 text-xs font-medium hover:bg-red-700 transition-colors"
+                      className="rounded-lg bg-red-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-red-700 transition-colors"
                     >
                       Delete
                     </button>
@@ -312,7 +312,7 @@ export function SalaryComponentsMaster() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Can resource="payroll" action="process">
-                        <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 sm:gap-2">
+                        <div className="flex flex-col sm:flex-row items-end sm:items-center sm:justify-end gap-1.5 sm:gap-2">
                           <button
                             onClick={() => { if (isExpanded) { setExpandedId(null); } else { handleEdit(c); } }}
                             className="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700 transition-colors"
