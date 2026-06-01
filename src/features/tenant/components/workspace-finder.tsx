@@ -21,7 +21,7 @@ export function WorkspaceFinder() {
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-primary-600">GammaKYE</h1>
           <p className="mt-2 text-sm text-text-secondary">
-            Enter your workspace name to continue
+            Sign in to
           </p>
         </div>
 

@@ -48,10 +48,11 @@ const EMPTY_FORM: ComponentFormValues = {
 };
 
 export function SalaryComponentsMaster() {
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
+  const [showNewForm, setShowNewForm] = useState(false);
 
   const { data, isLoading } = useSalaryComponentsList({ limit: 200 });
   const createMutation = useCreateSalaryComponent();
@@ -64,6 +65,7 @@ export function SalaryComponentsMaster() {
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<ComponentFormValues>({
     resolver: zodResolver(componentSchema),
@@ -74,9 +76,10 @@ export function SalaryComponentsMaster() {
 
   useEffect(() => {
     if (watchedCalcType === "fixed") {
-      reset((prev) => ({ ...prev, percentage_value: "", percentage_of: "" }));
+      setValue("percentage_value", "");
+      setValue("percentage_of", "");
     }
-  }, [watchedCalcType, reset]);
+  }, [watchedCalcType, setValue]);
 
   const handleEdit = useCallback((c: SalaryComponent) => {
     reset({
@@ -89,7 +92,8 @@ export function SalaryComponentsMaster() {
       percentage_of: c.percentage_of || "",
       is_active: c.is_active,
     });
-    setEditingId(c.id);
+    setExpandedId(c.id);
+    setShowNewForm(false);
     setError("");
   }, [reset]);
 
@@ -117,19 +121,20 @@ export function SalaryComponentsMaster() {
         is_active: data.is_active,
         tenant_location_id: "00000000-0000-0000-0000-000000000000",
       };
-      if (editingId) {
-        await updateMutation.mutateAsync({ id: editingId, payload });
+      if (expandedId) {
+        await updateMutation.mutateAsync({ id: expandedId, payload });
         setSuccess("Component updated.");
       } else {
         await createMutation.mutateAsync(payload);
         setSuccess("Component created.");
       }
       reset(EMPTY_FORM);
-      setEditingId(null);
+      setExpandedId(null);
+      setShowNewForm(false);
     } catch { setError("Failed to save component."); }
   };
 
-  const resetForm = () => { reset(EMPTY_FORM); setEditingId(null); setError(""); };
+  const cancelEdit = () => { setExpandedId(null); setShowNewForm(false); reset(EMPTY_FORM); setError(""); };
 
   if (isLoading) {
     return (
@@ -140,40 +145,53 @@ export function SalaryComponentsMaster() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {error && <Alert variant="error">{error}</Alert>}
       {success && <Alert variant="success">{success}</Alert>}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 rounded-xl border border-border bg-surface p-6">
-        <h2 className="text-lg font-semibold text-text-primary">
-          {editingId ? "Edit Component" : "New Component"}
-        </h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Input label="Code" {...register("code")} error={errors.code?.message} />
-          <Input label="Name" {...register("name")} error={errors.name?.message} />
-          <Select label="Type" {...register("type")} error={errors.type?.message}
-            options={[{ value: "earning", label: "Earning" }, { value: "deduction", label: "Deduction" }]} />
-          <Select label="Calculation" {...register("calculation_type")} error={errors.calculation_type?.message}
-            options={[{ value: "fixed", label: "Fixed" }, { value: "percentage", label: "Percentage" }]} />
-          {watchedCalcType === "percentage" && (
-            <>
-              <Input label="Percentage Value" type="number" step="0.01" min="0" max="100" {...register("percentage_value")} error={errors.percentage_value?.message} />
-              <Input label="Percentage Of" {...register("percentage_of")} error={errors.percentage_of?.message} placeholder="e.g. basic" />
-            </>
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-text-muted">{components.length} component{components.length !== 1 ? "s" : ""} defined</p>
+        <Can resource="payroll" action="process">
+          {!showNewForm && (
+            <button
+              onClick={() => { setShowNewForm(true); setExpandedId(null); reset(EMPTY_FORM); setError(""); }}
+              className="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700 transition-colors"
+            >
+              + New Component
+            </button>
           )}
-          <Input label="Description" {...register("description")} />
-          <label className="flex items-center gap-2 pt-6">
-            <input type="checkbox" {...register("is_active")} className="h-4 w-4" />
-            <span className="text-sm text-text-primary">Active</span>
-          </label>
-        </div>
-        <div className="flex gap-3">
-          <Button type="submit" loading={createMutation.isPending || updateMutation.isPending}>
-            {editingId ? "Update" : "Create"}
-          </Button>
-          {editingId && <Button type="button" variant="secondary" onClick={resetForm}>Cancel</Button>}
-        </div>
-      </form>
+        </Can>
+      </div>
+
+      {/* Inline new component form */}
+      {showNewForm && (
+        <form onSubmit={handleSubmit(onSubmit)} className="rounded-xl border border-primary-300 bg-primary-50 p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-text-primary">New Component</h3>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Input label="Code" {...register("code")} error={errors.code?.message} />
+            <Input label="Name" {...register("name")} error={errors.name?.message} />
+            <Select label="Type" {...register("type")} error={errors.type?.message}
+              options={[{ value: "earning", label: "Earning" }, { value: "deduction", label: "Deduction" }]} />
+            <Select label="Calculation" {...register("calculation_type")} error={errors.calculation_type?.message}
+              options={[{ value: "fixed", label: "Fixed" }, { value: "percentage", label: "Percentage" }]} />
+            {watchedCalcType === "percentage" && (
+              <>
+                <Input label="Percentage Value" type="number" step="0.01" min="0" max="100" {...register("percentage_value")} error={errors.percentage_value?.message} />
+                <Input label="Percentage Of" {...register("percentage_of")} error={errors.percentage_of?.message} placeholder="e.g. basic" />
+              </>
+            )}
+            <Input label="Description" {...register("description")} />
+            <label className="flex items-center gap-2 pt-6">
+              <input type="checkbox" {...register("is_active")} className="h-4 w-4" />
+              <span className="text-sm text-text-primary">Active</span>
+            </label>
+          </div>
+          <div className="flex gap-3">
+            <Button type="submit" loading={createMutation.isPending}>Create</Button>
+            <Button type="button" variant="secondary" onClick={cancelEdit}>Cancel</Button>
+          </div>
+        </form>
+      )}
 
       <div className="overflow-x-auto rounded-xl border border-border">
         <table className="w-full text-sm">
@@ -188,37 +206,74 @@ export function SalaryComponentsMaster() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {components.map((c: SalaryComponent) => (
-              <tr key={c.id} className="hover:bg-surface-secondary/50">
-                <td className="px-4 py-3 font-mono text-text-primary">{c.code}</td>
-                <td className="px-4 py-3 text-text-primary">{c.name}</td>
-                <td className="px-4 py-3">
-                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${c.type === "earning" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{c.type}</span>
-                </td>
-                <td className="px-4 py-3 text-text-secondary">
-                  {c.calculation_type === "percentage" ? `${c.percentage_value}% of ${c.percentage_of}` : "Fixed"}
-                </td>
-                <td className="px-4 py-3">
-                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${c.is_active ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"}`}>{c.is_active ? "Yes" : "No"}</span>
-                </td>
-                <td className="px-4 py-3 text-right space-x-2">
-                  <Can resource="payroll" action="process">
-                    <button
-                      onClick={() => handleEdit(c)}
-                      className="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700 transition-colors"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => setDeleteTarget(c.id)}
-                      className="rounded-lg bg-danger px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity"
-                    >
-                      Delete
-                    </button>
-                  </Can>
-                </td>
-              </tr>
-            ))}
+            {components.map((c: SalaryComponent) => {
+              const isExpanded = expandedId === c.id;
+              return (
+                <>
+                  <tr key={c.id} className="hover:bg-surface-secondary/50">
+                    <td className="px-4 py-3 font-mono text-text-primary">{c.code}</td>
+                    <td className="px-4 py-3 text-text-primary">{c.name}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${c.type === "earning" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{c.type}</span>
+                    </td>
+                    <td className="px-4 py-3 text-text-secondary">
+                      {c.calculation_type === "percentage" ? `${c.percentage_value}% of ${c.percentage_of}` : "Fixed"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${c.is_active ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"}`}>{c.is_active ? "Yes" : "No"}</span>
+                    </td>
+                    <td className="px-4 py-3 text-right space-x-2">
+                      <Can resource="payroll" action="process">
+                        <button
+                          onClick={() => { if (isExpanded) { setExpandedId(null); } else { handleEdit(c); } }}
+                          className="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700 transition-colors"
+                        >
+                          {isExpanded ? "Cancel" : "Edit"}
+                        </button>
+                        <button
+                          onClick={() => setDeleteTarget(c.id)}
+                          className="rounded-lg bg-danger px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity"
+                        >
+                          Delete
+                        </button>
+                      </Can>
+                    </td>
+                  </tr>
+                  {isExpanded && (
+                    <tr key={`exp-${c.id}`}>
+                      <td colSpan={6} className="px-4 py-4 bg-surface-secondary/30">
+                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+                          <h4 className="text-sm font-semibold text-text-primary">Edit {c.name}</h4>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            <Input label="Code" {...register("code")} error={errors.code?.message} />
+                            <Input label="Name" {...register("name")} error={errors.name?.message} />
+                            <Select label="Type" {...register("type")} error={errors.type?.message}
+                              options={[{ value: "earning", label: "Earning" }, { value: "deduction", label: "Deduction" }]} />
+                            <Select label="Calculation" {...register("calculation_type")} error={errors.calculation_type?.message}
+                              options={[{ value: "fixed", label: "Fixed" }, { value: "percentage", label: "Percentage" }]} />
+                            {watchedCalcType === "percentage" && (
+                              <>
+                                <Input label="Percentage Value" type="number" step="0.01" min="0" max="100" {...register("percentage_value")} error={errors.percentage_value?.message} />
+                                <Input label="Percentage Of" {...register("percentage_of")} error={errors.percentage_of?.message} placeholder="e.g. basic" />
+                              </>
+                            )}
+                            <Input label="Description" {...register("description")} />
+                            <label className="flex items-center gap-2 pt-6">
+                              <input type="checkbox" {...register("is_active")} className="h-4 w-4" />
+                              <span className="text-sm text-text-primary">Active</span>
+                            </label>
+                          </div>
+                          <div className="flex gap-3">
+                            <Button type="submit" loading={updateMutation.isPending}>Update</Button>
+                            <Button type="button" variant="secondary" onClick={cancelEdit}>Cancel</Button>
+                          </div>
+                        </form>
+                      </td>
+                    </tr>
+                  )}
+                </>
+              );
+            })}
             {components.length === 0 && (
               <tr><td colSpan={6} className="px-4 py-8 text-center text-text-muted">No salary components yet.</td></tr>
             )}

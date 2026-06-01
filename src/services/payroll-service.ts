@@ -129,7 +129,12 @@ export async function generateEmployeePayslips(payload: { month: number; year: n
 const ESC_BASE = "/api/v1/payroll/employee-salary-components";
 
 export async function listEmployeeSalaryComponents(
-  params?: { employee_salary_id?: number; salary_component_id?: number; offset?: number; limit?: number },
+  params?: {
+    employee_salary_id?: number;
+    salary_component_id?: number;
+    offset?: number;
+    limit?: number;
+  },
 ): Promise<EmployeeSalaryComponentListResult> {
   const qs = new URLSearchParams();
   if (params?.employee_salary_id !== undefined) qs.set("employee_salary_id", String(params.employee_salary_id));
